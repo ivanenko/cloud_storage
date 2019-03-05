@@ -23,15 +23,18 @@ License along with this library; if not, write to the Free Software
 
 #include "dummy_client.h"
 #include "yandex_rest_client.h"
+#include "dropbox_client.h"
 
 
 class ServiceFactory final {
 private:
     DummyClient* dummyClient;
     YandexRestClient* yandexClient;
+    DropboxClient* dropboxClient;
 
     std::vector<std::pair<std::string, std::string> > names = {
             {"yandex", "Yandex Disk"},
+            {"dropbox", "Dropbox"},
             {"dummy", "Dummy"}
     };
 
@@ -39,6 +42,7 @@ public:
     ServiceFactory() {
         dummyClient = NULL;
         yandexClient = NULL;
+        dropboxClient = NULL;
     }
 
     ~ServiceFactory(){
@@ -47,6 +51,9 @@ public:
 
         if(yandexClient)
             delete yandexClient;
+
+        if(dropboxClient)
+            delete dropboxClient;
     }
 
     std::vector<std::pair<std::string, std::string> > get_names() { return names; }
@@ -64,6 +71,13 @@ public:
                 yandexClient = new YandexRestClient();
 
             return yandexClient;
+        }
+
+        if(client == "dropbox"){
+            if(!dropboxClient)
+                dropboxClient = new DropboxClient();
+
+            return dropboxClient;
         }
 
         return NULL;

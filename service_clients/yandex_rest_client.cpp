@@ -25,6 +25,7 @@ License along with this library; if not, write to the Free Software
 #include "../wfxplugin.h"
 #include "../plugin_utils.h"
 #include "yandex_rest_client.h"
+#include "httplib.h"
 
 void _listen_server(httplib::Server* svr,  std::promise<std::string> *pr){
 
@@ -110,13 +111,6 @@ void YandexRestClient::throw_response_error(httplib::Response* resp){
     }
 }
 
-//TODO remove this func
-void YandexRestClient::check_parsing_result(json json)
-{
-    if(json.is_null())
-        throw std::runtime_error("Error parsing json response");
-}
-
 void YandexRestClient::set_oauth_token(const char *token)
 {
     assert(token != NULL);
@@ -144,37 +138,6 @@ pResources YandexRestClient::get_resources(std::string path, BOOL isTrash) {
     } else {
         throw_response_error(r.get());
     }
-}
-
-std::string YandexRestClient::url_encode(const std::string& s)
-{
-    std::string result;
-
-    for (auto i = 0; s[i]; i++) {
-        switch (s[i]) {
-            case ' ':  result += "%20"; break;
-            case '+':  result += "%2B"; break;
-            case '/':  result += "%2F"; break;
-            case '\'': result += "%27"; break;
-            case ',':  result += "%2C"; break;
-            case ':':  result += "%3A"; break;
-            case ';':  result += "%3B"; break;
-            default:
-                auto c = static_cast<uint8_t>(s[i]);
-                if (c >= 0x80) {
-                    result += '%';
-                    char hex[4];
-                    size_t len = snprintf(hex, sizeof(hex) - 1, "%02X", c);
-                    assert(len == 2);
-                    result.append(hex, len);
-                } else {
-                    result += s[i];
-                }
-                break;
-        }
-    }
-
-    return result;
 }
 
 pResources YandexRestClient::prepare_folder_result(json json, BOOL isRoot)

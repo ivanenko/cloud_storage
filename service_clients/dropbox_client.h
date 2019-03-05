@@ -18,18 +18,18 @@ License along with this library; if not, write to the Free Software
         Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301 USA
 */
 
-#ifndef CLOUD_STORAGE_YANDEX_REST_CLIENT_H
-#define CLOUD_STORAGE_YANDEX_REST_CLIENT_H
+#ifndef CLOUD_STORAGE_DROPBOX_CLIENT_H
+#define CLOUD_STORAGE_DROPBOX_CLIENT_H
 
 #define CPPHTTPLIB_OPENSSL_SUPPORT
 #include "service_client.h"
 #include "httplib.h"
 #include "../library.h"
 
-class YandexRestClient: public ServiceClient {
+class DropboxClient: public ServiceClient {
 public:
-    YandexRestClient();
-    ~YandexRestClient();
+    DropboxClient();
+    ~DropboxClient();
 
     std::string get_oauth_token();
 
@@ -60,15 +60,13 @@ public:
     void deleteFromTrash(std::string utf8Path) {}
 
 private:
-    const char* token;
+    std::string token;
     httplib::SSLClient* http_client;
     httplib::Headers headers;
 
     void throw_response_error(httplib::Response* resp);
-    void wait_success_operation(std::string &body);
-    void _do_download(std::string url, std::ofstream &ofstream);
     pResources prepare_folder_result(json json, BOOL isRoot);
-
 };
 
-#endif //CLOUD_STORAGE_YANDEX_REST_CLIENT_H
+
+#endif //CLOUD_STORAGE_DROPBOX_CLIENT_H

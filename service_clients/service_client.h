@@ -59,6 +59,9 @@ protected:
 
 
 class ServiceClient {
+protected:
+    std::__cxx11::string url_encode(const std::__cxx11::string& s);
+
 public:
 
     ServiceClient(){};

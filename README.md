@@ -2,4 +2,4 @@
 
 This is analog for the Ghisler's "Cloud" plugin, designed to work with popular cloud storages, like Google Drive, Dropbox etc.
 
-Plugin is in development now and only Yandex Disk service is available. Other services and full description will be added later.
+Plugin is in development now and only Yandex Disk and Dropbox services are available. Other services and full description will be added later.
