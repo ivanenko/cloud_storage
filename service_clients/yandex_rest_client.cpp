@@ -374,3 +374,41 @@ void YandexRestClient::saveFromUrl(std::string urlFrom, std::string pathTo)
         throw_response_error(r.get());
     }
 }
+
+void YandexRestClient::run_command(std::string remoteName, std::vector<std::string> &arguments)
+{
+    if(arguments[0] == "download"){
+        std::string fname;
+        if(arguments.size()==2){
+            // extract filename from url
+            std::string::size_type p = arguments[1].find_last_of((WCHAR)u'/');
+            if(p == std::string::npos)
+                throw std::runtime_error("Command error: cannot get filename from url");
+
+            fname = remoteName + arguments[1].substr(p+1);
+        } else if(arguments.size()==3){
+            fname = remoteName + arguments[2];
+        } else {
+            throw std::runtime_error("Command format error");
+        }
+
+        saveFromUrl(arguments[1], fname);
+        return;
+    }
+
+    if(arguments[0] == "trash"){
+        if(arguments.size()==2 && arguments[1]=="clean"){
+            cleanTrash();
+            //int res = gRequestProcW(gPluginNumber, RT_MsgOKCancel, (WCHAR*)u"Warning", (WCHAR*)u"All files from trash will be removed!", NULL, 0);
+            //if(res != 0){}
+        }
+
+//        if(arguments.size()==2){
+//            WCHAR* p = (WCHAR*)u"/.Trash";
+//            memcpy(RemoteName, p, sizeof(WCHAR) * 7);
+//            return FS_EXEC_SYMLINK;
+//        }
+    }
+
+    throw std::runtime_error("Command is not supported");
+}

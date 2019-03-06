@@ -39,39 +39,6 @@ std::string DropboxClient::get_auth_page_url()
     return url;
 }
 
-//std::string DropboxClient::get_oauth_token()
-//{
-//    httplib::Server server;
-//    std::string token;
-//
-//    std::promise<std::string> promiseToken;
-//    std::future<std::string> ftr = promiseToken.get_future();
-//
-//    //create and run server on separate thread
-//    std::thread server_thread(_listen_server2, &server, &promiseToken);
-//
-//    //TODO add win32 browser open
-//    system("xdg-open https://www.dropbox.com/oauth2/authorize?client_id=ovy1encsqm627kl\\&response_type=token\\&redirect_uri=http%3A%2F%2Flocalhost%3A3359%2Fget_token");
-//
-//    std::string error_message;
-//    std::future_status ftr_status = ftr.wait_for(std::chrono::seconds(20));
-//    if(ftr_status == std::future_status::ready) {
-//        token = ftr.get();
-//    } else if (ftr_status == std::future_status::timeout){
-//        error_message = "Timeout";
-//    } else {
-//        error_message = "Deffered future";
-//    }
-//
-//    server.stop();
-//    server_thread.join();
-//
-//    if(!error_message.empty())
-//        throw std::runtime_error(error_message);
-//
-//    return token;
-//}
-
 void DropboxClient::set_oauth_token(const char *token)
 {
     assert(token != NULL);
@@ -257,3 +224,7 @@ void DropboxClient::copy(std::string from, std::string to, BOOL overwrite)
         throw_response_error(r.get());
 }
 
+void DropboxClient::run_command(std::string remoteName, std::vector<std::string> &arguments)
+{
+
+}

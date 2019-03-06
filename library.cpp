@@ -470,21 +470,39 @@ int DCPCALL FsExecuteFileW(HWND MainWin, WCHAR* RemoteName, WCHAR* Verb)
 
     if(wVerb.find((WCHAR*)u"properties") == 0){
         if(wRemoteName == (WCHAR*) u"/"){ // show global plugin properties
-
+            // TODO show global plugin config dialog
         }
 
         if(isConnectionName(RemoteName)){
             std::string strName = UTF16toUTF8(RemoteName + 1);
-            json::object_t *obj;
-            for(json& o: gJsonConfig["connections"]){
-                if(o["name"].get<std::string>() == strName){
-                    obj = o.get_ptr<json::object_t*>();
-                }
-            }
-
+            json::object_t *obj = get_connection_ptr(gJsonConfig, strName);
             int res = show_connection_properties_dlg(obj);
             if(res)
                 save_config(gConfig_file_path, gJsonConfig);
+        }
+    }
+
+    if(wVerb.find((WCHAR*)u"quote") == 0){
+        std::vector<wcharstring> wStrings = split(wVerb, (WCHAR)u' ');
+        wStrings.erase(wStrings.begin());
+        if(wStrings.size() == 0)
+            return FS_EXEC_ERROR;
+
+        if( !isConnectionName(RemoteName) ){
+            std::string strConnection, strServicePath;
+            splitPath(RemoteName, strConnection, strServicePath);
+
+            try{
+                ServiceClient *client = getServiceClient(gJsonConfig, strConnection);
+                std::vector<std::string> strings;
+                for(wcharstring s: wStrings)
+                    strings.push_back(UTF16toUTF8(s.c_str()));
+
+                client->run_command(UTF16toUTF8(RemoteName), strings);
+            } catch (std::runtime_error & e){
+                gRequestProcW(gPluginNumber, RT_MsgOK, (WCHAR*)u"Error", (WCHAR*) UTF8toUTF16(e.what()).c_str(), NULL, 0);
+                return FS_EXEC_ERROR;
+            }
         }
     }
 

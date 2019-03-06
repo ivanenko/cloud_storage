@@ -24,7 +24,7 @@ License along with this library; if not, write to the Free Software
 #include <string>
 #include "service_client.h"
 
-void _listen_server2(httplib::Server* svr,  std::promise<std::string> *pr){
+void _listen_server(httplib::Server* svr,  std::promise<std::string> *pr){
 
     svr->Get("/get_token", [pr](const httplib::Request& req, httplib::Response& res) {
         std::string html = R"(
@@ -79,7 +79,7 @@ std::string ServiceClient::get_oauth_token()
     std::future<std::string> ftr = promiseToken.get_future();
 
     //create and run server on separate thread
-    std::thread server_thread(_listen_server2, &server, &promiseToken);
+    std::thread server_thread(_listen_server, &server, &promiseToken);
 
     //TODO add win32 browser open
     std::string url("xdg-open ");

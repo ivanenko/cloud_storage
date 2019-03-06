@@ -59,6 +59,8 @@ public:
     // remove one file or folder from trash
     void deleteFromTrash(std::string utf8Path) {}
 
+    void run_command(std::string remoteName, std::vector<std::string> &arguments) {}
+
 private:
     pResources prepare_folder_result(nlohmann::json& result);
 

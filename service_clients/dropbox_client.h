@@ -61,6 +61,8 @@ public:
     // remove one file or folder from trash
     void deleteFromTrash(std::string utf8Path) { throw std::runtime_error("Not supported"); }
 
+    void run_command(std::string remoteName, std::vector<std::string> &arguments);
+
 private:
     std::string token;
     httplib::SSLClient* http_client;

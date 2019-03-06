@@ -130,7 +130,7 @@ void splitPath(wcharstring wPath, std::string& strConnection, std::string& strSe
     strServicePath = UTF16toUTF8(wServicePath.data());
 }
 
-json& get_connection_config(json& globalConf, std::string strConnection)
+json& get_connection_config(json& globalConf, std::string& strConnection)
 {
     // get connection config
     for(nlohmann::json& o: globalConf["connections"]){
@@ -144,7 +144,18 @@ json& get_connection_config(json& globalConf, std::string strConnection)
     return j_null;
 }
 
-json::iterator get_connection_iter(json& globalConf, std::string strConnection)
+json::object_t* get_connection_ptr(json& globalConf, std::string& strConnection)
+{
+    for(json& o: globalConf["connections"]){
+        if(o["name"].get<std::string>() == strConnection){
+            return o.get_ptr<json::object_t*>();
+        }
+    }
+
+    throw std::runtime_error("Connection not found in config");
+}
+
+json::iterator get_connection_iter(json& globalConf, std::string& strConnection)
 {
     for(json::iterator it = globalConf.begin(); it!=globalConf.end(); ++it){
         if((*it)["name"].get<std::string>() == strConnection){
@@ -294,7 +305,7 @@ std::wstring widen(const WCHAR* p)
 }
 
 // Check if we are in the plugin root
-// if we have more than 1 '/' (ex. /connection1/folder1) - we are not in the root
+// if we have more than one '/' (ex. /connection1/folder1) - we are not in the root
 BOOL isConnectionName(WCHAR *Path)
 {
     int nCount = 0;
