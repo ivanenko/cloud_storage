@@ -29,7 +29,9 @@ public:
     DummyClient() {};
     ~DummyClient() {};
 
-    std::string get_oauth_token() { std::string token; return token; };
+    std::string get_auth_page_url() {std::string url; return url;}
+
+    //std::string get_oauth_token() { std::string token; return token; };
 
     void set_oauth_token(const char *token) {}
 

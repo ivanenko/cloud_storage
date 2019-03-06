@@ -18,8 +18,10 @@ License along with this library; if not, write to the Free Software
         Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301 USA
 */
 
+#include <future>
 #include "dropbox_client.h"
 #include "../plugin_utils.h"
+
 
 DropboxClient::DropboxClient()
 {
@@ -31,10 +33,44 @@ DropboxClient::~DropboxClient()
     delete http_client;
 }
 
-std::string DropboxClient::get_oauth_token()
+std::string DropboxClient::get_auth_page_url()
 {
-
+    std::string url("https://www.dropbox.com/oauth2/authorize?client_id=ovy1encsqm627kl\\&response_type=token\\&redirect_uri=http%3A%2F%2Flocalhost%3A3359%2Fget_token");
+    return url;
 }
+
+//std::string DropboxClient::get_oauth_token()
+//{
+//    httplib::Server server;
+//    std::string token;
+//
+//    std::promise<std::string> promiseToken;
+//    std::future<std::string> ftr = promiseToken.get_future();
+//
+//    //create and run server on separate thread
+//    std::thread server_thread(_listen_server2, &server, &promiseToken);
+//
+//    //TODO add win32 browser open
+//    system("xdg-open https://www.dropbox.com/oauth2/authorize?client_id=ovy1encsqm627kl\\&response_type=token\\&redirect_uri=http%3A%2F%2Flocalhost%3A3359%2Fget_token");
+//
+//    std::string error_message;
+//    std::future_status ftr_status = ftr.wait_for(std::chrono::seconds(20));
+//    if(ftr_status == std::future_status::ready) {
+//        token = ftr.get();
+//    } else if (ftr_status == std::future_status::timeout){
+//        error_message = "Timeout";
+//    } else {
+//        error_message = "Deffered future";
+//    }
+//
+//    server.stop();
+//    server_thread.join();
+//
+//    if(!error_message.empty())
+//        throw std::runtime_error(error_message);
+//
+//    return token;
+//}
 
 void DropboxClient::set_oauth_token(const char *token)
 {
@@ -48,7 +84,18 @@ void DropboxClient::set_oauth_token(const char *token)
 
 void DropboxClient::throw_response_error(httplib::Response* resp){
     if(resp){
-        throw service_client_exception(resp->status, resp->body);
+        std::string message;
+        try{
+            json js = json::parse(resp->body);
+            if(js["error_summary"].is_string())
+                message = js["error_summary"].get<std::string>();
+            else
+                message = resp->body;
+        } catch(...){
+            message = resp->body;
+        }
+
+        throw service_client_exception(resp->status, message);
     } else {
         throw std::runtime_error("Unknown error");
     }

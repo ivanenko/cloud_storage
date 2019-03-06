@@ -31,7 +31,9 @@ public:
     YandexRestClient();
     ~YandexRestClient();
 
-    std::string get_oauth_token();
+    std::string get_auth_page_url();
+
+    //std::string get_oauth_token();
 
     void set_oauth_token(const char *token);
 
@@ -51,13 +53,13 @@ public:
 
     void copy(std::string from, std::string to, BOOL overwrite);
 
-    void saveFromUrl(std::string urlFrom, std::string pathTo) {}
+    void saveFromUrl(std::string urlFrom, std::string pathTo);
 
     // remove all files from trash
-    void cleanTrash() {}
+    void cleanTrash();
 
     // remove one file or folder from trash
-    void deleteFromTrash(std::string utf8Path) {}
+    void deleteFromTrash(std::string utf8Path);
 
 private:
     const char* token;

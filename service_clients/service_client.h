@@ -68,7 +68,9 @@ public:
 
     virtual ~ServiceClient() {};
 
-    virtual std::string get_oauth_token() = 0;
+    virtual std::string get_auth_page_url() = 0;
+
+    virtual std::string get_oauth_token();
 
     virtual void set_oauth_token(const char *token) = 0;
 

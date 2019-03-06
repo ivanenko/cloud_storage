@@ -27,32 +27,6 @@ License along with this library; if not, write to the Free Software
 #include "yandex_rest_client.h"
 #include "httplib.h"
 
-void _listen_server(httplib::Server* svr,  std::promise<std::string> *pr){
-
-    svr->Get("/get_token", [pr](const httplib::Request& req, httplib::Response& res) {
-        std::string code = req.get_param_value("code");
-
-        httplib::SSLClient cli("oauth.yandex.ru");
-        httplib::Params params{
-                { "grant_type", "authorization_code" },
-                { "code", code },
-                { "client_id", "bc2f272cc37349b7a1320b9ac7826ebf"},
-                { "client_secret", "bb4b160bca0a4581a5e44e79a1adf42a"}
-        };
-
-        auto r = cli.Post("/token", params);
-
-        const auto js = json::parse(r->body);
-        res.set_content("OAuth token received", "text/plain");
-        pr->set_value(js["access_token"].get<std::string>());
-    });
-
-    //int port = svr->bind_to_any_port("localhost");
-    //std::cout << "Starting server at port: " << port << std::endl;
-    //svr->listen_after_bind();
-    svr->listen("localhost", 3359);
-}
-
 YandexRestClient::YandexRestClient(){
     http_client = new httplib::SSLClient("cloud-api.yandex.net");
 }
@@ -61,38 +35,10 @@ YandexRestClient::~YandexRestClient(){
     delete http_client;
 }
 
-std::string YandexRestClient::get_oauth_token()
+std::string YandexRestClient::get_auth_page_url()
 {
-    httplib::Server server;
-    std::string token;
-
-    std::promise<std::string> promiseToken;
-    std::future<std::string> ftr = promiseToken.get_future();
-
-    //create and run server on separate thread
-    std::thread server_thread(_listen_server, &server, &promiseToken);
-
-    //TODO add win32 browser open
-    system("xdg-open https://oauth.yandex.ru/authorize?client_id=bc2f272cc37349b7a1320b9ac7826ebf\\&response_type=code");
-
-    try{
-        std::future_status ftr_status = ftr.wait_for(std::chrono::seconds(20));
-        if(ftr_status == std::future_status::ready) {
-            token = ftr.get();
-        } else if (ftr_status == std::future_status::timeout){
-            throw std::runtime_error("Timeout");
-        } else {
-            throw std::runtime_error("deffered future");
-        }
-
-    } catch(std::exception & e) {
-        //std::cout << e.what() << std::endl;
-    }
-
-    server.stop();
-    server_thread.join();
-
-    return token;
+    std::string url("https://oauth.yandex.ru/authorize?client_id=bc2f272cc37349b7a1320b9ac7826ebf\\&response_type=token");
+    return url;
 }
 
 void YandexRestClient::throw_response_error(httplib::Response* resp){
@@ -374,6 +320,54 @@ void YandexRestClient::copy(std::string from, std::string to, BOOL overwrite)
         return;
     } else if(r.get() && r->status==202){
         //not empty folder is copying, get operation status
+        wait_success_operation(r->body);
+        return;
+    } else {
+        throw_response_error(r.get());
+    }
+}
+
+void YandexRestClient::cleanTrash()
+{
+    std::string url("/v1/disk/trash/resources");
+    auto r = http_client->Delete(url.c_str(), headers);
+
+    if(r.get() && r->status==204){
+        return;
+    } else if(r.get() && r->status==202){
+        //not empty folder is removing, get operation status
+        wait_success_operation(r->body);
+        return;
+    } else {
+        throw_response_error(r.get());
+    }
+}
+
+void YandexRestClient::deleteFromTrash(std::string utf8Path)
+{
+    std::string url("/v1/disk/trash/resources?path=");
+    url += url_encode(utf8Path);
+    auto r = http_client->Delete(url.c_str(), headers);
+
+    if(r.get() && r->status==204){
+        return;
+    } else if(r.get() && r->status==202){
+        //not empty folder is removing, get operation status
+        wait_success_operation(r->body);
+        return;
+    } else {
+        throw_response_error(r.get());
+    }
+}
+
+void YandexRestClient::saveFromUrl(std::string urlFrom, std::string pathTo)
+{
+    std::string url("/v1/disk/resources/upload?url=");
+    url += url_encode(urlFrom) + "&path=" + url_encode(pathTo);
+    std::string empty_body;
+    auto r = http_client->Post(url.c_str(), headers, empty_body, "text/plain");
+
+    if(r.get() && r->status==202){
         wait_success_operation(r->body);
         return;
     } else {

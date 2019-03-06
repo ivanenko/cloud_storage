@@ -24,6 +24,88 @@ License along with this library; if not, write to the Free Software
 #include <string>
 #include "service_client.h"
 
+void _listen_server2(httplib::Server* svr,  std::promise<std::string> *pr){
+
+    svr->Get("/get_token", [pr](const httplib::Request& req, httplib::Response& res) {
+        std::string html = R"(
+            <html><body>
+                <h2 id="message">Success</h2>
+                <script type="text/javascript">
+                    var hash = window.location.hash.substr(1);
+                    var i = hash.search("access_token=");
+                    if(i<0){
+                        document.getElementById("message").textContent = "Error! Cannot get auth_token";
+                    } else {
+                        var token = hash.substr(i)
+                                        .split("&")[0]
+                                        .split("=")[1];
+
+                        if(token){
+                            var xhttp = new XMLHttpRequest();
+                            xhttp.onreadystatechange = function() {
+                                if (this.readyState == 4 && this.status == 200) {
+                                 document.getElementById("message").textContent = "Success! You can close browser and use DC plugin";
+                                }
+                             };
+                            xhttp.open("GET", "/receive_token?access_token="+token, true);
+                            xhttp.send();
+                        }
+                    }
+                </script>
+            </body></html>
+        )";
+
+        res.set_content(html, "text/html");
+    });
+
+    svr->Get("/receive_token", [pr](const httplib::Request& req, httplib::Response& res) {
+        std::string token = req.get_param_value("access_token");
+        res.set_content("OAuth token received", "text/plain");
+        pr->set_value(token);
+    });
+
+    //int port = svr->bind_to_any_port("localhost");
+    //std::cout << "Starting server at port: " << port << std::endl;
+    //svr->listen_after_bind();
+    svr->listen("localhost", 3359);
+}
+
+std::string ServiceClient::get_oauth_token()
+{
+    httplib::Server server;
+    std::string token;
+
+    std::promise<std::string> promiseToken;
+    std::future<std::string> ftr = promiseToken.get_future();
+
+    //create and run server on separate thread
+    std::thread server_thread(_listen_server2, &server, &promiseToken);
+
+    //TODO add win32 browser open
+    std::string url("xdg-open ");
+    url += get_auth_page_url();
+    system(url.c_str());
+    //system("xdg-open https://www.dropbox.com/oauth2/authorize?client_id=ovy1encsqm627kl\\&response_type=token\\&redirect_uri=http%3A%2F%2Flocalhost%3A3359%2Fget_token");
+
+    std::string error_message;
+    std::future_status ftr_status = ftr.wait_for(std::chrono::seconds(20));
+    if(ftr_status == std::future_status::ready) {
+        token = ftr.get();
+    } else if (ftr_status == std::future_status::timeout){
+        error_message = "Timeout";
+    } else {
+        error_message = "Deffered future";
+    }
+
+    server.stop();
+    server_thread.join();
+
+    if(!error_message.empty())
+        throw std::runtime_error(error_message);
+
+    return token;
+}
+
 std::__cxx11::string ServiceClient::url_encode(const std::__cxx11::string& s)
 {
     std::__cxx11::string result;
