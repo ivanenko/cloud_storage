@@ -224,7 +224,106 @@ void DropboxClient::copy(std::string from, std::string to, BOOL overwrite)
         throw_response_error(r.get());
 }
 
+void DropboxClient::saveFromUrl(std::string urlFrom, std::string pathTo)
+{
+    json jsBody = {
+            {"path", pathTo},
+            {"url", urlFrom}
+    };
+
+    auto r = http_client->Post("/2/files/save_url", headers, jsBody.dump(), "application/json");
+    if(!r.get() || r->status!=200)
+        throw_response_error(r.get());
+
+    json js = json::parse(r->body);
+    if(js["async_job_id"].is_string()){
+        json js_async = { {"async_job_id", js["async_job_id"].get<std::string>()} };
+        BOOL success = false;
+        int waitCount = 0;
+        do{
+            std::this_thread::sleep_for(std::chrono::seconds(2));
+            auto r2 = http_client->Post("/2/files/save_url/check_job_status", headers, js_async.dump(), "application/json");
+            if(!r2.get() || r2->status!=200)
+                throw std::runtime_error("Error getting operation status");
+
+            json js2 = json::parse(r2->body);
+            if(js2[".tag"].is_string() && js2[".tag"].get<std::string>()=="complete")
+                success = true;
+
+            if(js2["error"].is_string())
+                throw service_client_exception(500, "Operation error");
+
+            // if(json2[".tag"].string_value() == "in_progress") - Do nothing, just wait
+            waitCount++;
+
+        } while(success==false && waitCount<30*5); //wait at least 5 min
+
+        if(success==false && waitCount>=30*5)
+            throw std::runtime_error("Operation is too long");
+    }
+}
+
+void DropboxClient::downloadZip(std::string pathFrom, std::string pathTo)
+{
+    httplib::SSLClient cli("content.dropboxapi.com");
+    json jsParams = { {"path", pathFrom} };
+
+    if(file_exists(pathTo))
+        throw std::runtime_error("File exists");
+
+    std::ofstream ofs;
+    ofs.open(pathTo, std::ios::binary | std::ofstream::out | std::ios::trunc);
+    if(!ofs || ofs.bad())
+        throw std::runtime_error("File create error");
+
+    httplib::Headers hd = headers;
+    hd.emplace("Dropbox-API-Arg", jsParams.dump());
+    std::string strEmpty;
+
+    auto r = cli.Post("/2/files/download", hd, strEmpty, "text/plain");
+
+    if(r.get() && r->status == 200){
+        ofs.write(r->body.data(), r->body.size());
+        ofs.close();
+    } else {
+        throw_response_error(r.get());
+    }
+}
+
 void DropboxClient::run_command(std::string remoteName, std::vector<std::string> &arguments)
 {
+    if(arguments[0] == "download"){
+        std::string fname;
+        if(arguments.size()==2){
+            // extract filename from url
+            std::string::size_type p = arguments[1].find_last_of('/');
+            if(p == std::string::npos)
+                throw std::runtime_error("Command error: cannot get filename from url");
 
+            fname = remoteName + arguments[1].substr(p+1);
+        } else if(arguments.size()==3){
+            fname = remoteName + arguments[2];
+        } else {
+            throw std::runtime_error("Command format error");
+        }
+
+        saveFromUrl(arguments[1], fname);
+        return;
+    }
+
+    if(arguments[0] == "zip"){
+        //TODO check dest file name
+
+        if(arguments.size()==2){ // no folder name in command, use remoteName as source
+            downloadZip(remoteName, arguments[1]);
+        } else if(arguments.size()==3){
+            downloadZip(arguments[1], arguments[2]);
+        } else {
+            throw std::runtime_error("Command format error");
+        }
+
+        return;
+    }
+
+    throw std::runtime_error("Command is not supported");
 }

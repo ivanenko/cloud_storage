@@ -503,6 +503,12 @@ int DCPCALL FsExecuteFileW(HWND MainWin, WCHAR* RemoteName, WCHAR* Verb)
                 gRequestProcW(gPluginNumber, RT_MsgOK, (WCHAR*)u"Error", (WCHAR*) UTF8toUTF16(e.what()).c_str(), NULL, 0);
                 return FS_EXEC_ERROR;
             }
+
+            if(wStrings[1] == (WCHAR*)u"trash" && wStrings.size()==2){
+                WCHAR* p = (WCHAR*)u"/.Trash";
+                memcpy(RemoteName, p, sizeof(WCHAR) * 8);
+                return FS_EXEC_SYMLINK;
+            }
         }
     }
 

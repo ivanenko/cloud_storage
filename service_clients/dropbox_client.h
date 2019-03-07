@@ -53,7 +53,7 @@ public:
 
     void copy(std::string from, std::string to, BOOL overwrite);
 
-    void saveFromUrl(std::string urlFrom, std::string pathTo) {}
+    void saveFromUrl(std::string urlFrom, std::string pathTo);
 
     // remove all files from trash
     void cleanTrash() { throw std::runtime_error("Not supported"); }
@@ -70,6 +70,8 @@ private:
 
     void throw_response_error(httplib::Response* resp);
     pResources prepare_folder_result(json json, BOOL isRoot);
+
+    void downloadZip(std::string pathFrom, std::string pathTo);
 };
 
 
