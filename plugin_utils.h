@@ -55,7 +55,7 @@ BOOL isConnectionExists(json connections, std::string connection_name);
 
 void splitPath(wcharstring wPath, std::string& strConnection, std::string& strServicePath);
 
-json& get_connection_config(json& globalConf, std::string strConnection);
+json& get_connection_config(json& globalConf, std::string& strConnection);
 json::object_t* get_connection_ptr(json& globalConf, std::string& strConnection);
 json::iterator get_connection_iter(json& globalConf, std::string strConnection);
 

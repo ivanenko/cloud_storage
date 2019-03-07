@@ -266,6 +266,7 @@ void DropboxClient::saveFromUrl(std::string urlFrom, std::string pathTo)
 void DropboxClient::downloadZip(std::string pathFrom, std::string pathTo)
 {
     httplib::SSLClient cli("content.dropboxapi.com");
+    pathFrom.erase(--pathFrom.end()); // remove last slash
     json jsParams = { {"path", pathFrom} };
 
     if(file_exists(pathTo))
@@ -280,7 +281,7 @@ void DropboxClient::downloadZip(std::string pathFrom, std::string pathTo)
     hd.emplace("Dropbox-API-Arg", jsParams.dump());
     std::string strEmpty;
 
-    auto r = cli.Post("/2/files/download", hd, strEmpty, "text/plain");
+    auto r = cli.Post("/2/files/download_zip", hd, strEmpty, "text/plain");
 
     if(r.get() && r->status == 200){
         ofs.write(r->body.data(), r->body.size());

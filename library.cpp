@@ -126,6 +126,8 @@ ServiceClient* getServiceClient(json& gJsonConfig, std::string strConnectionName
 
 HANDLE DCPCALL FsFindFirstW(WCHAR* Path, WIN32_FIND_DATAW *FindData)
 {
+    //TODO read config file here?
+
     if(gIsFolderRemoving)
         return (HANDLE)-1;
 
@@ -498,7 +500,7 @@ int DCPCALL FsExecuteFileW(HWND MainWin, WCHAR* RemoteName, WCHAR* Verb)
                 for(wcharstring s: wStrings)
                     strings.push_back(UTF16toUTF8(s.c_str()));
 
-                client->run_command(UTF16toUTF8(RemoteName), strings);
+                client->run_command(strServicePath, strings);
             } catch (std::runtime_error & e){
                 gRequestProcW(gPluginNumber, RT_MsgOK, (WCHAR*)u"Error", (WCHAR*) UTF8toUTF16(e.what()).c_str(), NULL, 0);
                 return FS_EXEC_ERROR;
