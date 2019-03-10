@@ -24,6 +24,7 @@ License along with this library; if not, write to the Free Software
 #include "dummy_client.h"
 #include "yandex_rest_client.h"
 #include "dropbox_client.h"
+#include "googledrive_client.h"
 
 
 class ServiceFactory final {
@@ -31,10 +32,12 @@ private:
     DummyClient* dummyClient;
     YandexRestClient* yandexClient;
     DropboxClient* dropboxClient;
+    GoogleDriveClient* googledriveClient;
 
     std::vector<std::pair<std::string, std::string> > names = {
             {"yandex", "Yandex Disk"},
             {"dropbox", "Dropbox"},
+            {"gdrive", "Google Drive"},
             {"dummy", "Dummy"}
     };
 
@@ -43,6 +46,7 @@ public:
         dummyClient = NULL;
         yandexClient = NULL;
         dropboxClient = NULL;
+        googledriveClient = NULL;
     }
 
     ~ServiceFactory(){
@@ -54,6 +58,9 @@ public:
 
         if(dropboxClient)
             delete dropboxClient;
+
+        if(googledriveClient)
+            delete googledriveClient;
     }
 
     std::vector<std::pair<std::string, std::string> > get_names() { return names; }
@@ -78,6 +85,13 @@ public:
                 dropboxClient = new DropboxClient();
 
             return dropboxClient;
+        }
+
+        if(client == "gdrive"){
+            if(!googledriveClient)
+                googledriveClient = new GoogleDriveClient();
+
+            return googledriveClient;
         }
 
         return NULL;

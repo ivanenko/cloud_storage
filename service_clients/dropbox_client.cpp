@@ -18,7 +18,6 @@ License along with this library; if not, write to the Free Software
         Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301 USA
 */
 
-#include <future>
 #include "dropbox_client.h"
 #include "../plugin_utils.h"
 
@@ -129,9 +128,10 @@ pResources DropboxClient::prepare_folder_result(json js, BOOL isRoot)
 
 void DropboxClient::makeFolder(std::string utf8Path)
 {
-    json jsBody;
-    jsBody["path"] = utf8Path;
-    jsBody["autorename"] = false;
+    json jsBody = {
+            {"path", utf8Path},
+            {"autorename", true}
+    };
 
     auto r = http_client->Post("/2/files/create_folder_v2", headers, jsBody.dump(), "application/json");
 

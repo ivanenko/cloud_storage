@@ -153,7 +153,7 @@ HANDLE DCPCALL FsFindFirstW(WCHAR* Path, WIN32_FIND_DATAW *FindData)
     try{
         ServiceClient *client = getServiceClient(gJsonConfig, strConnection);
         pRes = client->get_resources(strServicePath, false);
-    } catch (std::runtime_error & e){
+    } catch (std::exception & e){
         gRequestProcW(gPluginNumber, RT_MsgOK, (WCHAR*)u"Error", (WCHAR*) UTF8toUTF16(e.what()).c_str(), NULL, 0);
     }
 
