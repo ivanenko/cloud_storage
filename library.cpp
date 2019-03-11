@@ -139,8 +139,8 @@ HANDLE DCPCALL FsFindFirstW(WCHAR* Path, WIN32_FIND_DATAW *FindData)
         memset(FindData, 0, sizeof(WIN32_FIND_DATAW));
         memcpy(FindData->cFileName, _createstr+1, sizeof(WCHAR) * strlen16((WCHAR*)_createstr+1));
         FindData->ftCreationTime = get_now_time();
-        FindData->ftLastWriteTime.dwHighDateTime=0xFFFFFFFF;
-        FindData->ftLastWriteTime.dwLowDateTime=0xFFFFFFFE;
+        FindData->ftLastWriteTime = get_now_time();
+        FindData->nFileSizeLow = 1;
 
         //get and show all connections from config
         pRes = prepare_connections(gJsonConfig["connections"]);
@@ -168,8 +168,7 @@ HANDLE DCPCALL FsFindFirstW(WCHAR* Path, WIN32_FIND_DATAW *FindData)
 //        } else {
             gRequestProcW(gPluginNumber, RT_MsgOK, (WCHAR*)u"Error", (WCHAR*) UTF8toUTF16(e.what()).c_str(), NULL, 0);
         //}
-    }
-    catch (std::exception & e){
+    } catch (std::exception & e){
         gRequestProcW(gPluginNumber, RT_MsgOK, (WCHAR*)u"Error", (WCHAR*) UTF8toUTF16(e.what()).c_str(), NULL, 0);
     }
 
@@ -313,10 +312,10 @@ int DCPCALL FsRenMovFileW(WCHAR* OldName, WCHAR* NewName, BOOL Move, BOOL OverWr
     std::replace(wOldName.begin(), wOldName.end(), u'\\', u'/');
     std::replace(wNewName.begin(), wNewName.end(), u'\\', u'/');
 
-    if(isConnectionName(OldName)){
-        if(!isConnectionName(NewName))
-            return FS_FILE_WRITEERROR;
+    if(isConnectionName(NewName) != isConnectionName(OldName))
+        return FS_FILE_NOTSUPPORTED;
 
+    if(isConnectionName(OldName)){
         if(!Move)
             return FS_FILE_WRITEERROR;
 
@@ -372,6 +371,10 @@ int DCPCALL FsGetFileW(WCHAR* RemoteName, WCHAR* LocalName, int CopyFlags, Remot
     if(CopyFlags & FS_COPYFLAGS_RESUME)
         return FS_FILE_NOTSUPPORTED;
 
+    // do not allow copy files from the root
+    if(isConnectionName(RemoteName))
+        return FS_FILE_NOTSUPPORTED;
+
     try{
         std::ofstream ofs;
         wcharstring wRemoteName(RemoteName), wLocalName(LocalName);
@@ -408,14 +411,19 @@ int DCPCALL FsGetFileW(WCHAR* RemoteName, WCHAR* LocalName, int CopyFlags, Remot
     return FS_FILE_OK;
 }
 
-int DCPCALL FsPutFileW(WCHAR* LocalName,WCHAR* RemoteName,int CopyFlags) {
+int DCPCALL FsPutFileW(WCHAR* LocalName, WCHAR* RemoteName, int CopyFlags) {
     if (CopyFlags & FS_COPYFLAGS_RESUME)
         return FS_FILE_NOTSUPPORTED;
 
+    // do not allow copy files to the root
+    if(isConnectionName(RemoteName))
+        return FS_FILE_NOTSUPPORTED;
+
     try {
-        std::ifstream ifs;
         wcharstring wRemoteName(RemoteName), wLocalName(LocalName);
         std::replace(wRemoteName.begin(), wRemoteName.end(), u'\\', u'/');
+
+        std::ifstream ifs;
         ifs.open(UTF16toUTF8(wLocalName.data()), std::ios::binary | std::ofstream::in);
         if (!ifs || ifs.bad())
             return FS_FILE_READERROR;
@@ -531,8 +539,10 @@ int DCPCALL FsExecuteFileW(HWND MainWin, WCHAR* RemoteName, WCHAR* Verb)
             }
 
             if(wStrings[1] == (WCHAR*)u"trash" && wStrings.size()==2){
-                WCHAR* p = (WCHAR*)u"/.Trash";
-                memcpy(RemoteName, p, sizeof(WCHAR) * 8);
+                wcharstring wConnection((WCHAR*)u"/");
+                wConnection += UTF8toUTF16(strConnection);
+                wConnection += (WCHAR*)u"/.Trash";
+                memcpy(RemoteName, wConnection.c_str(), sizeof(WCHAR) * wConnection.size());
                 return FS_EXEC_SYMLINK;
             }
         }
