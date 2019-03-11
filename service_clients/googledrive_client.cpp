@@ -81,7 +81,9 @@ pResources GoogleDriveClient::get_resources(std::string path, BOOL isTrash)
             folderId = resourceNamesMap[folderName];
     }
 
-    std::string url = "/drive/v3/files?q=trashed=false and '";
+    std::string url = "/drive/v3/files?q=trashed=";
+    url += (isTrash? "true": "false");
+    url += " and '";
     url += folderId;
     url += "' in parents&fields=files(id,name,size,createdTime,modifiedTime,parents,mimeType)";
 
@@ -104,7 +106,7 @@ pResources GoogleDriveClient::prepare_folder_result(json js, BOOL isRoot)
     int total = js["files"].size();
 
     pResources pRes = new tResources;
-    pRes->nSize = total;
+    pRes->nSize = isRoot ? total+1: total;
     pRes->nCount = 0;
     pRes->resource_array = new WIN32_FIND_DATAW[pRes->nSize];
 
@@ -135,6 +137,15 @@ pResources GoogleDriveClient::prepare_folder_result(json js, BOOL isRoot)
         resourceNamesMap[item["name"].get<std::string>()] = item["id"].get<std::string>();
 
         i++;
+    }
+
+    if(isRoot){
+        memcpy(pRes->resource_array[total].cFileName, u".Trash", sizeof(WCHAR) * 7);
+        pRes->resource_array[total].dwFileAttributes = FILE_ATTRIBUTE_DIRECTORY;
+        pRes->resource_array[total].nFileSizeLow = 0;
+        pRes->resource_array[total].nFileSizeHigh = 0;
+        pRes->resource_array[total].ftCreationTime = get_now_time();
+        pRes->resource_array[total].ftLastWriteTime = get_now_time();
     }
 
     return pRes;
@@ -318,5 +329,13 @@ void GoogleDriveClient::copy(std::string from, std::string to, BOOL overwrite)
     auto r = http_client->Post(url.c_str(), headers, jsBody.dump(), "application/json");
 
     if(!r.get() || r->status!=200)
+        throw_response_error(r.get());
+}
+
+void GoogleDriveClient::cleanTrash()
+{
+    auto r = http_client->Delete("/drive/v3/files/trash", headers);
+
+    if(!r.get() || r->status<=200 || r->status>=300)
         throw_response_error(r.get());
 }

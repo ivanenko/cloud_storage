@@ -42,12 +42,14 @@ std::string UTF16toUTF8(const WCHAR *p);
 
 wcharstring UTF8toUTF16(const std::string &str);
 
-BOOL file_exists(const std::string& filename);
+BOOL file_exists(const std::string &filename);
 
-void save_config(std::string &path, json jsonConfig);
+void save_config(const std::string &path, const json &jsonConfig);
 
 std::string get_oauth_token(json& jsConfig, ServiceClient* client, int pluginNumber, tRequestProcW requestProc,
                             int cryptoNumber, tCryptProcW cryptProc);
+
+void removeOldToken(json::iterator &it, int pluginNumber, int cryptoNumber, tCryptProcW cryptProc);
 
 pResources prepare_connections(const json &connections);
 
@@ -57,7 +59,7 @@ void splitPath(wcharstring wPath, std::string& strConnection, std::string& strSe
 
 json& get_connection_config(json& globalConf, std::string& strConnection);
 json::object_t* get_connection_ptr(json& globalConf, std::string& strConnection);
-json::iterator get_connection_iter(json& globalConf, std::string strConnection);
+json::iterator get_connection_iter(json& globalConf, std::string& strConnection);
 
 BOOL isConnectionName(WCHAR *Path);
 

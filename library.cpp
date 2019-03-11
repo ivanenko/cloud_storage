@@ -152,8 +152,24 @@ HANDLE DCPCALL FsFindFirstW(WCHAR* Path, WIN32_FIND_DATAW *FindData)
 
     try{
         ServiceClient *client = getServiceClient(gJsonConfig, strConnection);
-        pRes = client->get_resources(strServicePath, false);
-    } catch (std::exception & e){
+        int ifTrash = strServicePath.find("/.Trash");
+        if(ifTrash == 0)
+            strServicePath = strServicePath.substr(7);
+        pRes = client->get_resources(strServicePath, ifTrash == 0);
+    } catch (service_client_exception & e){
+//        if(e.get_status() == 401){
+//            // TODO erase old token from config and map, and try to get new token
+//            //json::object_t * obj = get_connection_ptr(gJsonConfig, strConnection);
+//            //obj->emplace("oauth_token", "");
+//            //removeOldToken(it, gPluginNumber, gCryptoNr, gCryptProcW);
+//            //gTokenMap.erase(strConnection);
+//            //save_config(gConfig_file_path, gJsonConfig);
+//            //return FsFindFirstW(Path, FindData);
+//        } else {
+            gRequestProcW(gPluginNumber, RT_MsgOK, (WCHAR*)u"Error", (WCHAR*) UTF8toUTF16(e.what()).c_str(), NULL, 0);
+        //}
+    }
+    catch (std::exception & e){
         gRequestProcW(gPluginNumber, RT_MsgOK, (WCHAR*)u"Error", (WCHAR*) UTF8toUTF16(e.what()).c_str(), NULL, 0);
     }
 
@@ -275,7 +291,15 @@ BOOL DCPCALL FsRemoveDirW(WCHAR* RemoteName)
 
     try{
         ServiceClient* client = getServiceClient(gJsonConfig, strConnection);
-        client->removeResource(strServicePath);
+        int ifTrash = strServicePath.find("/.Trash");
+        if(ifTrash == 0) {
+            BOOL bRes = gRequestProcW(gPluginNumber, RT_MsgOKCancel, (WCHAR*)u"Warning", (WCHAR*)u"Do you want to clean trash?", NULL, 0);
+            if(bRes != 0)
+                client->cleanTrash();
+        } else {
+            client->removeResource(strServicePath);
+        }
+
         return true;
     } catch (std::runtime_error & e){
         gRequestProcW(gPluginNumber, RT_MsgOK, (WCHAR*)u"Error", (WCHAR*) UTF8toUTF16(e.what()).c_str(), NULL, 0);

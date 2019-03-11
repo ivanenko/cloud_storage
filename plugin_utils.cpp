@@ -185,7 +185,6 @@ std::string get_oauth_token(json& jsConfig, ServiceClient* client, int pluginNum
             } else {
                 oauth_token = client->get_oauth_token();
                 jsConfig["oauth_token"] = oauth_token;
-                // TODO save config to file
             }
 
             return oauth_token;
@@ -229,7 +228,6 @@ std::string get_oauth_token(json& jsConfig, ServiceClient* client, int pluginNum
                 if(res != 0){
                     oauth_token = UTF16toUTF8(psw);
                     jsConfig["oauth_token"] = oauth_token;
-                    // TODO save config to file
                 }
             }
             return oauth_token;
@@ -258,7 +256,27 @@ std::string get_oauth_token(json& jsConfig, ServiceClient* client, int pluginNum
     return oauth_token;
 }
 
-void save_config(std::string &path, json jsonConfig)
+void removeOldToken(json::iterator &it, int pluginNumber, int cryptoNumber, tCryptProcW cryptProc)
+{
+    //json::object_t* obj = get_connection_ptr(jsConfig, strConnectionName);
+
+    //json& connection = get_connection_config(jsConfig, strConnectionName);
+
+
+
+    std::string save_type = it->at("save_type").get<std::string>();
+
+    if(save_type == "config")
+        it->emplace("oauth_token", "");
+
+    if(save_type == "password_manager"){
+        //wcharstring wName = UTF8toUTF16(strConnectionName);
+        //cryptProc(pluginNumber, cryptoNumber, FS_CRYPT_DELETE_PASSWORD, (WCHAR*)wName.data(), NULL, MAX_PATH);
+    }
+
+}
+
+void save_config(const std::string &path, const json &jsonConfig)
 {
     std::ofstream o(path);
     o << std::setw(4) << jsonConfig << std::endl;

@@ -53,10 +53,10 @@ public:
 
     void copy(std::string from, std::string to, BOOL overwrite);
 
-    void saveFromUrl(std::string urlFrom, std::string pathTo) {}
+    void saveFromUrl(std::string urlFrom, std::string pathTo) { throw std::runtime_error("Not supported"); }
 
     // remove all files from trash
-    void cleanTrash() { throw std::runtime_error("Not supported"); }
+    void cleanTrash();
 
     // remove one file or folder from trash
     void deleteFromTrash(std::string utf8Path) { throw std::runtime_error("Not supported"); }
