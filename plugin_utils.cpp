@@ -256,24 +256,18 @@ std::string get_oauth_token(json& jsConfig, ServiceClient* client, int pluginNum
     return oauth_token;
 }
 
-void removeOldToken(json::iterator &it, int pluginNumber, int cryptoNumber, tCryptProcW cryptProc)
+void removeOldToken(json &jsConfig, std::string &strConnectionName, int pluginNumber, int cryptoNumber, tCryptProcW cryptProc)
 {
-    //json::object_t* obj = get_connection_ptr(jsConfig, strConnectionName);
-
-    //json& connection = get_connection_config(jsConfig, strConnectionName);
-
-
-
-    std::string save_type = it->at("save_type").get<std::string>();
+    json::object_t* obj = get_connection_ptr(jsConfig, strConnectionName);
+    std::string save_type = obj->at("save_type").get<std::string>();
 
     if(save_type == "config")
-        it->emplace("oauth_token", "");
+        obj->at("oauth_token") = "";
 
     if(save_type == "password_manager"){
-        //wcharstring wName = UTF8toUTF16(strConnectionName);
-        //cryptProc(pluginNumber, cryptoNumber, FS_CRYPT_DELETE_PASSWORD, (WCHAR*)wName.data(), NULL, MAX_PATH);
+        wcharstring wName = UTF8toUTF16(strConnectionName);
+        cryptProc(pluginNumber, cryptoNumber, FS_CRYPT_DELETE_PASSWORD, (WCHAR*)wName.data(), NULL, MAX_PATH);
     }
-
 }
 
 void save_config(const std::string &path, const json &jsonConfig)

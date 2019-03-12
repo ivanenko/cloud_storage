@@ -49,7 +49,7 @@ void save_config(const std::string &path, const json &jsonConfig);
 std::string get_oauth_token(json& jsConfig, ServiceClient* client, int pluginNumber, tRequestProcW requestProc,
                             int cryptoNumber, tCryptProcW cryptProc);
 
-void removeOldToken(json::iterator &it, int pluginNumber, int cryptoNumber, tCryptProcW cryptProc);
+void removeOldToken(json &jsConfig, std::string &strConnectionName, int pluginNumber, int cryptoNumber, tCryptProcW cryptProc);
 
 pResources prepare_connections(const json &connections);
 
