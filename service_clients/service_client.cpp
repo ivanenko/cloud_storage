@@ -119,6 +119,7 @@ std::__cxx11::string ServiceClient::url_encode(const std::__cxx11::string& s)
             case ',':  result += "%2C"; break;
             case ':':  result += "%3A"; break;
             case ';':  result += "%3B"; break;
+            case '#':  result += "%23"; break;
             default:
                 auto c = static_cast<uint8_t>(s[i]);
                 if (c >= 0x80) {

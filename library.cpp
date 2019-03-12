@@ -265,7 +265,7 @@ BOOL DCPCALL FsMkDirW(WCHAR* Path)
         return true;
     } catch (std::runtime_error & e){
         gRequestProcW(gPluginNumber, RT_MsgOK, (WCHAR*)u"Error", (WCHAR*) UTF8toUTF16(e.what()).c_str(), NULL, 0);
-        return false;
+        return true; // not to show DC error message
     }
 }
 
