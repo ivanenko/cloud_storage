@@ -24,7 +24,7 @@ License along with this library; if not, write to the Free Software
 #include <string>
 #include "service_client.h"
 
-void _listen_server(httplib::Server* svr,  std::promise<std::string> *pr){
+void _listen_server(httplib::Server* svr, std::promise<std::string> *pr, int port){
 
     svr->Get("/get_token", [pr](const httplib::Request& req, httplib::Response& res) {
         std::string html = R"(
@@ -67,7 +67,12 @@ void _listen_server(httplib::Server* svr,  std::promise<std::string> *pr){
     //int port = svr->bind_to_any_port("localhost");
     //std::cout << "Starting server at port: " << port << std::endl;
     //svr->listen_after_bind();
-    svr->listen("localhost", 3359);
+    svr->listen("localhost", port); // 3359
+}
+
+int ServiceClient::_get_port()
+{
+    return m_port;
 }
 
 std::string ServiceClient::get_oauth_token()
@@ -79,13 +84,12 @@ std::string ServiceClient::get_oauth_token()
     std::future<std::string> ftr = promiseToken.get_future();
 
     //create and run server on separate thread
-    std::thread server_thread(_listen_server, &server, &promiseToken);
+    std::thread server_thread(_listen_server, &server, &promiseToken, _get_port());
 
     //TODO add win32 browser open
     std::string url("xdg-open ");
     url += get_auth_page_url();
     system(url.c_str());
-    //system("xdg-open https://www.dropbox.com/oauth2/authorize?client_id=ovy1encsqm627kl\\&response_type=token\\&redirect_uri=http%3A%2F%2Flocalhost%3A3359%2Fget_token");
 
     std::string error_message;
     std::future_status ftr_status = ftr.wait_for(std::chrono::seconds(20));

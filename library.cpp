@@ -114,6 +114,11 @@ ServiceClient* getServiceClient(json& gJsonConfig, std::string strConnectionName
     if(it != gTokenMap.end()){
         strToken = it->second;
     } else {
+        if(connection["port"].is_number())
+            client->set_port(connection["port"].get<int>());
+        if(connection["client_id"].is_string())
+            client->set_client_id(connection["client_id"].get<std::string>());
+
         strToken = get_oauth_token(connection, client, gPluginNumber, gRequestProcW, gCryptoNr, gCryptProcW);
         save_config(gConfig_file_path, gJsonConfig);
         gTokenMap[connection["name"].get<std::string>()] = strToken;

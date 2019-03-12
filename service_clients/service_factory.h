@@ -37,8 +37,8 @@ private:
     std::vector<std::pair<std::string, std::string> > names = {
             {"yandex", "Yandex Disk"},
             {"dropbox", "Dropbox"},
-            {"gdrive", "Google Drive"},
-            {"dummy", "Dummy"}
+            {"gdrive", "Google Drive"}
+            //{"dummy", "Dummy"}
     };
 
 public:

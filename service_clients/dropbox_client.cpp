@@ -25,6 +25,7 @@ License along with this library; if not, write to the Free Software
 DropboxClient::DropboxClient()
 {
     http_client = new httplib::SSLClient("api.dropboxapi.com");
+    m_client_id = "ovy1encsqm627kl";
 }
 
 DropboxClient::~DropboxClient()
@@ -34,7 +35,8 @@ DropboxClient::~DropboxClient()
 
 std::string DropboxClient::get_auth_page_url()
 {
-    std::string url("https://www.dropbox.com/oauth2/authorize?client_id=ovy1encsqm627kl\\&response_type=token\\&redirect_uri=http%3A%2F%2Flocalhost%3A3359%2Fget_token");
+    std::string url("https://www.dropbox.com/oauth2/authorize?response_type=token\\&redirect_uri=http%3A%2F%2Flocalhost%3A3359%2Fget_token\\&client_id=");
+    url += _get_client_id();
     return url;
 }
 

@@ -26,6 +26,7 @@ GoogleDriveClient::GoogleDriveClient()
 {
     http_client = new httplib::SSLClient("www.googleapis.com");
     resourceNamesMap["/"] = "root";
+    m_client_id = "1019190623375-06j9q3kgqnborccd85fudtf0f7rk7138.apps.googleusercontent.com";
 }
 
 GoogleDriveClient::~GoogleDriveClient()
@@ -35,7 +36,8 @@ GoogleDriveClient::~GoogleDriveClient()
 
 std::string GoogleDriveClient::get_auth_page_url()
 {
-    std::string url("https://accounts.google.com/o/oauth2/v2/auth?response_type=token\\&redirect_uri=http://localhost:3359/get_token\\&scope=https://www.googleapis.com/auth/drive\\&client_id=1019190623375-06j9q3kgqnborccd85fudtf0f7rk7138.apps.googleusercontent.com");
+    std::string url("https://accounts.google.com/o/oauth2/v2/auth?response_type=token\\&redirect_uri=http://localhost:3359/get_token\\&scope=https://www.googleapis.com/auth/drive\\&client_id=");
+    url += _get_client_id();
     return url;
 }
 

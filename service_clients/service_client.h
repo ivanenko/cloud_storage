@@ -60,11 +60,16 @@ protected:
 
 class ServiceClient {
 protected:
+    int m_port;
+    std::string m_client_id;
+
     std::__cxx11::string url_encode(const std::__cxx11::string& s);
+    int _get_port();
+    virtual std::string _get_client_id() { return m_client_id; };
 
 public:
 
-    ServiceClient(){};
+    ServiceClient(){ m_port = 3359; };
 
     virtual ~ServiceClient() {};
 
@@ -99,6 +104,10 @@ public:
     virtual void deleteFromTrash(std::string utf8Path) = 0;
 
     virtual void run_command(std::string remoteName, std::vector<std::string> &arguments) = 0;
+
+    virtual void set_port(int port) { m_port = port; };
+
+    virtual void set_client_id(std::string client_id) { m_client_id = client_id; };
 };
 
 #endif //CLOUD_STORAGE_SERVICE_CLIENT_H

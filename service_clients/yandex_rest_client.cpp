@@ -28,6 +28,7 @@ License along with this library; if not, write to the Free Software
 #include "httplib.h"
 
 YandexRestClient::YandexRestClient(){
+    m_client_id = "bc2f272cc37349b7a1320b9ac7826ebf";
     http_client = new httplib::SSLClient("cloud-api.yandex.net");
 }
 
@@ -37,7 +38,8 @@ YandexRestClient::~YandexRestClient(){
 
 std::string YandexRestClient::get_auth_page_url()
 {
-    std::string url("https://oauth.yandex.ru/authorize?client_id=bc2f272cc37349b7a1320b9ac7826ebf\\&response_type=token");
+    std::string url("https://oauth.yandex.ru/authorize?response_type=token\\&client_id=");
+    url += _get_client_id();
     return url;
 }
 
