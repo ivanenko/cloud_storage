@@ -24,13 +24,13 @@ License along with this library; if not, write to the Free Software
 
 DropboxClient::DropboxClient()
 {
-    http_client = new httplib::SSLClient("api.dropboxapi.com");
+    m_http_client = new httplib::SSLClient("api.dropboxapi.com");
     m_client_id = "ovy1encsqm627kl";
 }
 
 DropboxClient::~DropboxClient()
 {
-    delete http_client;
+    delete m_http_client;
 }
 
 std::string DropboxClient::get_auth_page_url()
@@ -43,11 +43,10 @@ std::string DropboxClient::get_auth_page_url()
 void DropboxClient::set_oauth_token(const char *token)
 {
     assert(token != NULL);
-    //this->token = token;
 
     std::string header_token = "Bearer ";
     header_token += token;
-    headers = { {"Authorization", header_token} };
+    m_headers = { {"Authorization", header_token} };
 }
 
 void DropboxClient::throw_response_error(httplib::Response* resp){
@@ -77,7 +76,7 @@ pResources DropboxClient::get_resources(std::string path, BOOL isTrash)
             {"limit", 2000}
     };
 
-    auto r = http_client->Post("/2/files/list_folder", headers, jsBody.dump(), "application/json");
+    auto r = m_http_client->Post("/2/files/list_folder", m_headers, jsBody.dump(), "application/json");
 
     if(r.get() && r->status==200){
         const auto js = json::parse(r->body);
@@ -135,7 +134,7 @@ void DropboxClient::makeFolder(std::string utf8Path)
             {"autorename", true}
     };
 
-    auto r = http_client->Post("/2/files/create_folder_v2", headers, jsBody.dump(), "application/json");
+    auto r = m_http_client->Post("/2/files/create_folder_v2", m_headers, jsBody.dump(), "application/json");
 
     if(!r.get() || r->status!=200)
         throw_response_error(r.get());
@@ -145,7 +144,7 @@ void DropboxClient::removeResource(std::string utf8Path)
 {
     json jsBody = { {"path", utf8Path} };
 
-    auto r = http_client->Post("/2/files/delete_v2", headers, jsBody.dump(), "application/json");
+    auto r = m_http_client->Post("/2/files/delete_v2", m_headers, jsBody.dump(), "application/json");
 
     if(!r.get() || r->status!=200)
         throw_response_error(r.get());
@@ -156,7 +155,7 @@ void DropboxClient::downloadFile(std::string path, std::ofstream &ofstream)
     httplib::SSLClient cli("content.dropboxapi.com");
     json jsParams = { {"path", path} };
 
-    httplib::Headers hd = headers;
+    httplib::Headers hd = m_headers;
     hd.emplace("Dropbox-API-Arg", jsParams.dump());
     std::string strEmpty;
 
@@ -180,7 +179,7 @@ void DropboxClient::uploadFile(std::string path, std::ifstream &ifstream, BOOL o
             {"autorename", false}
     };
 
-    httplib::Headers hd = headers;
+    httplib::Headers hd = m_headers;
     hd.emplace("Dropbox-API-Arg", jsParams.dump());
     std::string strEmpty;
 
@@ -206,7 +205,7 @@ void DropboxClient::move(std::string from, std::string to, BOOL overwrite)
             {"autorename", false}
     };
 
-    auto r = http_client->Post("/2/files/move_v2", headers, jsBody.dump(), "application/json");
+    auto r = m_http_client->Post("/2/files/move_v2", m_headers, jsBody.dump(), "application/json");
 
     if(!r.get() || r->status!=200)
         throw_response_error(r.get());
@@ -220,7 +219,7 @@ void DropboxClient::copy(std::string from, std::string to, BOOL overwrite)
             {"autorename", false}
     };
 
-    auto r = http_client->Post("/2/files/copy_v2", headers, jsBody.dump(), "application/json");
+    auto r = m_http_client->Post("/2/files/copy_v2", m_headers, jsBody.dump(), "application/json");
 
     if(!r.get() || r->status!=200)
         throw_response_error(r.get());
@@ -233,7 +232,7 @@ void DropboxClient::saveFromUrl(std::string urlFrom, std::string pathTo)
             {"url", urlFrom}
     };
 
-    auto r = http_client->Post("/2/files/save_url", headers, jsBody.dump(), "application/json");
+    auto r = m_http_client->Post("/2/files/save_url", m_headers, jsBody.dump(), "application/json");
     if(!r.get() || r->status!=200)
         throw_response_error(r.get());
 
@@ -244,7 +243,7 @@ void DropboxClient::saveFromUrl(std::string urlFrom, std::string pathTo)
         int waitCount = 0;
         do{
             std::this_thread::sleep_for(std::chrono::seconds(2));
-            auto r2 = http_client->Post("/2/files/save_url/check_job_status", headers, js_async.dump(), "application/json");
+            auto r2 = m_http_client->Post("/2/files/save_url/check_job_status", m_headers, js_async.dump(), "application/json");
             if(!r2.get() || r2->status!=200)
                 throw std::runtime_error("Error getting operation status");
 
@@ -279,7 +278,7 @@ void DropboxClient::downloadZip(std::string pathFrom, std::string pathTo)
     if(!ofs || ofs.bad())
         throw std::runtime_error("File create error");
 
-    httplib::Headers hd = headers;
+    httplib::Headers hd = m_headers;
     hd.emplace("Dropbox-API-Arg", jsParams.dump());
     std::string strEmpty;
 

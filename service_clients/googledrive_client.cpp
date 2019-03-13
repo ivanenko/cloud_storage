@@ -24,14 +24,14 @@ License along with this library; if not, write to the Free Software
 
 GoogleDriveClient::GoogleDriveClient()
 {
-    http_client = new httplib::SSLClient("www.googleapis.com");
-    resourceNamesMap["/"] = "root";
+    m_http_client = new httplib::SSLClient("www.googleapis.com");
+    m_resourceNamesMap["/"] = "root";
     m_client_id = "1019190623375-06j9q3kgqnborccd85fudtf0f7rk7138.apps.googleusercontent.com";
 }
 
 GoogleDriveClient::~GoogleDriveClient()
 {
-    delete http_client;
+    delete m_http_client;
 }
 
 std::string GoogleDriveClient::get_auth_page_url()
@@ -63,25 +63,17 @@ void GoogleDriveClient::throw_response_error(httplib::Response* resp){
 void GoogleDriveClient::set_oauth_token(const char *token)
 {
     assert(token != NULL);
-    //this->token = token;
 
     std::string header_token = "Bearer ";
     header_token += token;
-    headers = { {"Authorization", header_token}, {"Accept", "application/json"} };
+    m_headers = { {"Authorization", header_token}, {"Accept", "application/json"} };
 }
 
 pResources GoogleDriveClient::get_resources(std::string path, BOOL isTrash)
 {
-    // mimeType='application/vnd.google-apps.folder'
-    // $search = "title='stackoverflow' AND mimeType = 'application/vnd.google-apps.folder' AND trashed != true";
-
     std::string folderId("root"), folderName;
-    if(path != "/") {
-        int p = path.find_last_of('/');
-        folderName = path.substr(p + 1);
-        if (resourceNamesMap.find(folderName) != resourceNamesMap.end())
-            folderId = resourceNamesMap[folderName];
-    }
+    if (m_resourceNamesMap.find(path) != m_resourceNamesMap.end())
+        folderId = m_resourceNamesMap[path];
 
     std::string url = "/drive/v3/files?q=trashed=";
     url += (isTrash? "true": "false");
@@ -89,22 +81,23 @@ pResources GoogleDriveClient::get_resources(std::string path, BOOL isTrash)
     url += folderId;
     url += "' in parents&fields=files(id,name,size,createdTime,modifiedTime,parents,mimeType)";
 
-    auto r = http_client->Get(url.c_str(), headers);
+    auto r = m_http_client->Get(url.c_str(), m_headers);
 
     if(r.get() && r->status==200){
         const auto js = json::parse(r->body);
 
-        return prepare_folder_result(js, (path == "/") );
+        return prepare_folder_result(js, path);
     } else {
         throw_response_error(r.get());
     }
 }
 
-pResources GoogleDriveClient::prepare_folder_result(json js, BOOL isRoot)
+pResources GoogleDriveClient::prepare_folder_result(json js, std::string &path)
 {
     if(!js["files"].is_array())
         throw std::runtime_error("Wrong Json format");
 
+    BOOL isRoot = (path == "/");
     int total = js["files"].size();
 
     pResources pRes = new tResources;
@@ -136,7 +129,11 @@ pResources GoogleDriveClient::prepare_folder_result(json js, BOOL isRoot)
             pRes->resource_array[i].ftLastWriteTime = parse_iso_time(item["modifiedTime"].get<std::string>());
         }
 
-        resourceNamesMap[item["name"].get<std::string>()] = item["id"].get<std::string>();
+        std::string p = path;
+        if(path != "/")
+            p += "/";
+        p += item["name"].get<std::string>();
+        m_resourceNamesMap[p] = item["id"].get<std::string>();
 
         i++;
     }
@@ -159,10 +156,9 @@ void GoogleDriveClient::makeFolder(std::string utf8Path)
     int p = utf8Path.find_last_of('/');
     folderName = utf8Path.substr(p + 1);
     if(p>0){
-        int p2 = utf8Path.substr(0, p).find_last_of('/');
-        std::string parentFolderName = utf8Path.substr(p2+1, p-1);
-        if(resourceNamesMap.find(parentFolderName) != resourceNamesMap.end())
-            parentFolderId = resourceNamesMap[parentFolderName];
+        std::string parentFolderPath = utf8Path.substr(0, p);
+        if(m_resourceNamesMap.find(parentFolderPath) != m_resourceNamesMap.end())
+            parentFolderId = m_resourceNamesMap[parentFolderPath];
     }
 
     json jsBody = {
@@ -171,14 +167,14 @@ void GoogleDriveClient::makeFolder(std::string utf8Path)
             {"parents", {parentFolderId}}
     };
 
-    httplib::Headers hd = headers;
+    httplib::Headers hd = m_headers;
     hd.emplace("Content-Type", "application/json");
 
-    auto r = http_client->Post("/drive/v3/files", headers, jsBody.dump(), "application/json");
+    auto r = m_http_client->Post("/drive/v3/files", m_headers, jsBody.dump(), "application/json");
 
     if(r.get() && r->status==200){
         json js = json::parse(r->body);
-        resourceNamesMap["folderName"] = js["id"].get<std::string>();
+        m_resourceNamesMap[utf8Path] = js["id"].get<std::string>();
     } else {
         throw_response_error(r.get());
     }
@@ -186,14 +182,12 @@ void GoogleDriveClient::makeFolder(std::string utf8Path)
 
 void GoogleDriveClient::removeResource(std::string utf8Path)
 {
-    int p = utf8Path.find_last_of('/');
-    std::string resourceName = utf8Path.substr(p + 1);
-    if(resourceNamesMap.find(resourceName) == resourceNamesMap.end())
+    if(m_resourceNamesMap.find(utf8Path) == m_resourceNamesMap.end())
         throw std::runtime_error("resource ID not found");
 
     std::string url("/drive/v3/files/");
-    url += resourceNamesMap[resourceName];
-    auto r = http_client->Delete(url.c_str(), headers);
+    url += m_resourceNamesMap[utf8Path];
+    auto r = m_http_client->Delete(url.c_str(), m_headers);
 
     if(!r.get() || r->status!=204){
         throw_response_error(r.get());
@@ -202,16 +196,14 @@ void GoogleDriveClient::removeResource(std::string utf8Path)
 
 void GoogleDriveClient::downloadFile(std::string path, std::ofstream &ofstream)
 {
-    int p = path.find_last_of('/');
-    std::string resourceName = path.substr(p + 1);
-    if(resourceNamesMap.find(resourceName) == resourceNamesMap.end())
+    if(m_resourceNamesMap.find(path) == m_resourceNamesMap.end())
         throw std::runtime_error("resource ID not found");
 
     std::string url("/drive/v3/files/");
-    url += resourceNamesMap[resourceName];
+    url += m_resourceNamesMap[path];
     url += "?alt=media";
 
-    auto r = http_client->Get(url.c_str(), headers);
+    auto r = m_http_client->Get(url.c_str(), m_headers);
 
     if(r.get() && r->status == 200){
         ofstream.write(r->body.data(), r->body.size());
@@ -224,12 +216,10 @@ void GoogleDriveClient::uploadFile(std::string path, std::ifstream &ifstream, BO
 {
     std::string resourceName, parentFolderId("root");
     int p = path.find_last_of('/');
-    resourceName = path.substr(p + 1);
     if(p>0){
-        int p2 = path.substr(0, p).find_last_of('/');
-        std::string parentFolderName = path.substr(p2+1, p-1);
-        if(resourceNamesMap.find(parentFolderName) != resourceNamesMap.end())
-            parentFolderId = resourceNamesMap[parentFolderName];
+        std::string parentFolderPath = path.substr(0, p);
+        if(m_resourceNamesMap.find(parentFolderPath) != m_resourceNamesMap.end())
+            parentFolderId = m_resourceNamesMap[parentFolderPath];
     }
 
     json jsParams = {
@@ -238,7 +228,7 @@ void GoogleDriveClient::uploadFile(std::string path, std::ifstream &ifstream, BO
             //TODO add create_datetime
     };
 
-    auto r = http_client->Post("/upload/drive/v3/files?uploadType=resumable", headers, jsParams.dump(), "application/json");
+    auto r = m_http_client->Post("/upload/drive/v3/files?uploadType=resumable", m_headers, jsParams.dump(), "application/json");
 
     if(!r.get() || r->status != 200)
         throw_response_error(r.get());
@@ -251,7 +241,7 @@ void GoogleDriveClient::uploadFile(std::string path, std::ifstream &ifstream, BO
     std::stringstream body;
     body << ifstream.rdbuf();
 
-    r = http_client->Put(downloadUrl.c_str(), headers, body.str(), "application/octet-stream");
+    r = m_http_client->Put(downloadUrl.c_str(), m_headers, body.str(), "application/octet-stream");
 
     if(r.get() && (r->status==200 || r->status==201)){
         return;
@@ -266,25 +256,22 @@ void GoogleDriveClient::move(std::string from, std::string to, BOOL overwrite)
 {
     std::string fileId, oldParentId("root"), newParentId("root");
     int p = from.find_last_of('/');
-    std::string fileName = from.substr(p + 1);
-    if(resourceNamesMap.find(fileName) == resourceNamesMap.end())
+    if(m_resourceNamesMap.find(from) == m_resourceNamesMap.end())
         throw std::runtime_error("Cannot find file ID");
 
-    fileId = resourceNamesMap[fileName];
+    fileId = m_resourceNamesMap[from];
 
     if(p>0){
-        int p2 = from.substr(0, p).find_last_of('/');
-        std::string oldParentName = from.substr(p2+1, p-1);
-        if(resourceNamesMap.find(oldParentName) != resourceNamesMap.end())
-            oldParentId = resourceNamesMap[oldParentName];
+        std::string oldParentPath = from.substr(0, p);
+        if(m_resourceNamesMap.find(oldParentPath) != m_resourceNamesMap.end())
+            oldParentId = m_resourceNamesMap[oldParentPath];
     }
 
     p = to.find_last_of('/');
     if(p>0){
-        int p2 = to.substr(0, p).find_last_of('/');
-        std::string newParentName = to.substr(p2+1, p-1);
-        if(resourceNamesMap.find(newParentName) != resourceNamesMap.end())
-            newParentId = resourceNamesMap[newParentName];
+        std::string newParentPath = to.substr(0, p);
+        if(m_resourceNamesMap.find(newParentPath) != m_resourceNamesMap.end())
+            newParentId = m_resourceNamesMap[newParentPath];
     }
 
     std::string url("/drive/v3/files/");
@@ -294,7 +281,7 @@ void GoogleDriveClient::move(std::string from, std::string to, BOOL overwrite)
     url += "&addParents=";
     url += newParentId;
 
-    auto r = http_client->Patch(url.c_str(), headers, "", "application/json");
+    auto r = m_http_client->Patch(url.c_str(), m_headers, "", "application/json");
 
     if(!r.get() || r->status!=200)
         throw_response_error(r.get());
@@ -302,21 +289,18 @@ void GoogleDriveClient::move(std::string from, std::string to, BOOL overwrite)
 
 void GoogleDriveClient::copy(std::string from, std::string to, BOOL overwrite)
 {
-    std::string fileId, fromFileName, toFileName, toFolderId("root");
-    int p = from.find_last_of('/');
-    fromFileName = from.substr(p + 1);
-    if(resourceNamesMap.find(fromFileName) == resourceNamesMap.end())
+    std::string fileId, toFileName, toFolderId("root");
+    if(m_resourceNamesMap.find(from) == m_resourceNamesMap.end())
         throw std::runtime_error("Cannot find file ID");
 
-    fileId = resourceNamesMap[fromFileName];
+    fileId = m_resourceNamesMap[from];
 
-    p = to.find_last_of('/');
+    int p = to.find_last_of('/');
     toFileName = to.substr(p + 1);
     if(p>0){
-        int p2 = to.substr(0, p).find_last_of('/');
-        std::string newFolderName = to.substr(p2+1, p-1);
-        if(resourceNamesMap.find(newFolderName) != resourceNamesMap.end())
-            toFolderId = resourceNamesMap[newFolderName];
+        std::string newFolderPath = to.substr(0, p);
+        if(m_resourceNamesMap.find(newFolderPath) != m_resourceNamesMap.end())
+            toFolderId = m_resourceNamesMap[newFolderPath];
     }
 
     json jsBody = {
@@ -328,7 +312,7 @@ void GoogleDriveClient::copy(std::string from, std::string to, BOOL overwrite)
     url += fileId;
     url += "/copy";
 
-    auto r = http_client->Post(url.c_str(), headers, jsBody.dump(), "application/json");
+    auto r = m_http_client->Post(url.c_str(), m_headers, jsBody.dump(), "application/json");
 
     if(!r.get() || r->status!=200)
         throw_response_error(r.get());
@@ -336,7 +320,7 @@ void GoogleDriveClient::copy(std::string from, std::string to, BOOL overwrite)
 
 void GoogleDriveClient::cleanTrash()
 {
-    auto r = http_client->Delete("/drive/v3/files/trash", headers);
+    auto r = m_http_client->Delete("/drive/v3/files/trash", m_headers);
 
     if(!r.get() || r->status<=200 || r->status>=300)
         throw_response_error(r.get());

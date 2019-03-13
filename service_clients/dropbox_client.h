@@ -65,8 +65,8 @@ public:
 
 private:
     std::string token;
-    httplib::SSLClient* http_client;
-    httplib::Headers headers;
+    httplib::SSLClient* m_http_client;
+    httplib::Headers m_headers;
 
     void throw_response_error(httplib::Response* resp);
     pResources prepare_folder_result(json json, BOOL isRoot);

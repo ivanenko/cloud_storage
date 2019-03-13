@@ -29,11 +29,11 @@ License along with this library; if not, write to the Free Software
 
 YandexRestClient::YandexRestClient(){
     m_client_id = "bc2f272cc37349b7a1320b9ac7826ebf";
-    http_client = new httplib::SSLClient("cloud-api.yandex.net");
+    m_http_client = new httplib::SSLClient("cloud-api.yandex.net");
 }
 
 YandexRestClient::~YandexRestClient(){
-    delete http_client;
+    delete m_http_client;
 }
 
 std::string YandexRestClient::get_auth_page_url()
@@ -62,11 +62,10 @@ void YandexRestClient::throw_response_error(httplib::Response* resp){
 void YandexRestClient::set_oauth_token(const char *token)
 {
     assert(token != NULL);
-    //this->token = token;
 
     std::string header_token = "OAuth ";
     header_token += token;
-    headers = { {"Authorization", header_token} };
+    m_headers = { {"Authorization", header_token} };
 }
 
 pResources YandexRestClient::get_resources(std::string path, BOOL isTrash) {
@@ -76,7 +75,7 @@ pResources YandexRestClient::get_resources(std::string path, BOOL isTrash) {
         url += "trash/";
     url += "resources?limit=1000&path=";
     url += url_encode(path);
-    auto r = http_client->Get(url.c_str(), headers);
+    auto r = m_http_client->Get(url.c_str(), m_headers);
 
     if(r.get() && r->status==200){
         const auto json = json::parse(r->body);
@@ -137,7 +136,7 @@ void YandexRestClient::makeFolder(std::string utf8Path)
     std::string url("/v1/disk/resources?path=");
     url += url_encode(utf8Path);
     std::string empty_body;
-    auto r = http_client->Put(url.c_str(), headers, empty_body, "text/plain");
+    auto r = m_http_client->Put(url.c_str(), m_headers, empty_body, "text/plain");
 
     if(!r.get() || r->status!=201)
         throw_response_error(r.get());
@@ -148,7 +147,7 @@ void YandexRestClient::removeResource(std::string utf8Path)
 {
     std::string url("/v1/disk/resources?path=");
     url += url_encode(utf8Path);
-    auto r = http_client->Delete(url.c_str(), headers);
+    auto r = m_http_client->Delete(url.c_str(), m_headers);
 
     if(r.get() && r->status==204){
         //empty folder or file was removed
@@ -174,7 +173,7 @@ void YandexRestClient::wait_success_operation(std::string &body)
     int waitCount = 0;
     do{
         std::this_thread::sleep_for(std::chrono::seconds(2));
-        auto r2 = http_client->Get(url_status.c_str(), headers);
+        auto r2 = m_http_client->Get(url_status.c_str(), m_headers);
         if(r2.get() && r2->status==200){
             const auto json2 = json::parse(r2->body);
 
@@ -206,7 +205,7 @@ void YandexRestClient::downloadFile(std::string path, std::ofstream &ofstream)
     url += url_encode(path);
 
     // Get download link
-    auto r = http_client->Get(url.c_str(), headers);
+    auto r = m_http_client->Get(url.c_str(), m_headers);
     if(r.get() && r->status==200){
         const auto js = json::parse(r->body);
 
@@ -255,7 +254,7 @@ void YandexRestClient::uploadFile(std::string path, std::ifstream& ifstream, BOO
     url += "&overwrite=";
     url += (overwrite ? "true": "false");
 
-    auto r = http_client->Get(url.c_str(), headers);
+    auto r = m_http_client->Get(url.c_str(), m_headers);
     if(r.get() && r->status==200){
         const auto js = json::parse(r->body);
         url = js["href"].get<std::string>();
@@ -277,7 +276,7 @@ void YandexRestClient::uploadFile(std::string path, std::ifstream& ifstream, BOO
     }
 
     httplib::SSLClient cli2(server_url.c_str(), 443);
-    auto r2 = cli2.Put(request_url.c_str(), headers, body.str(), "application/octet-stream");
+    auto r2 = cli2.Put(request_url.c_str(), m_headers, body.str(), "application/octet-stream");
 
     if(r2.get() && (r2->status==201 || r2->status==202)){
         return;
@@ -293,7 +292,7 @@ void YandexRestClient::move(std::string from, std::string to, BOOL overwrite)
     url += "&overwrite=";
     url += (overwrite == true ? "true": "false");
     std::string empty_body;
-    auto r = http_client->Post(url.c_str(), headers, empty_body, "text/plain");
+    auto r = m_http_client->Post(url.c_str(), m_headers, empty_body, "text/plain");
 
     if(r.get() && r->status==201){
         //success
@@ -315,7 +314,7 @@ void YandexRestClient::copy(std::string from, std::string to, BOOL overwrite)
     url += "&overwrite=";
     url += (overwrite == true ? "true": "false");
     std::string empty_body;
-    auto r = http_client->Post(url.c_str(), headers, empty_body, "text/plain");
+    auto r = m_http_client->Post(url.c_str(), m_headers, empty_body, "text/plain");
 
     if(r.get() && r->status==201){
         //success
@@ -332,7 +331,7 @@ void YandexRestClient::copy(std::string from, std::string to, BOOL overwrite)
 void YandexRestClient::cleanTrash()
 {
     std::string url("/v1/disk/trash/resources");
-    auto r = http_client->Delete(url.c_str(), headers);
+    auto r = m_http_client->Delete(url.c_str(), m_headers);
 
     if(r.get() && r->status==204){
         return;
@@ -349,7 +348,7 @@ void YandexRestClient::deleteFromTrash(std::string utf8Path)
 {
     std::string url("/v1/disk/trash/resources?path=");
     url += url_encode(utf8Path);
-    auto r = http_client->Delete(url.c_str(), headers);
+    auto r = m_http_client->Delete(url.c_str(), m_headers);
 
     if(r.get() && r->status==204){
         return;
@@ -367,7 +366,7 @@ void YandexRestClient::saveFromUrl(std::string urlFrom, std::string pathTo)
     std::string url("/v1/disk/resources/upload?url=");
     url += url_encode(urlFrom) + "&path=" + url_encode(pathTo);
     std::string empty_body;
-    auto r = http_client->Post(url.c_str(), headers, empty_body, "text/plain");
+    auto r = m_http_client->Post(url.c_str(), m_headers, empty_body, "text/plain");
 
     if(r.get() && r->status==202){
         wait_success_operation(r->body);

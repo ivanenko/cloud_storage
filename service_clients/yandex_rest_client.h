@@ -64,9 +64,8 @@ public:
     void run_command(std::string remoteName, std::vector<std::string> &arguments);
 
 private:
-    const char* token;
-    httplib::SSLClient* http_client;
-    httplib::Headers headers;
+    httplib::SSLClient* m_http_client;
+    httplib::Headers m_headers;
 
     void throw_response_error(httplib::Response* resp);
     void wait_success_operation(std::string &body);
