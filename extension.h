@@ -1,5 +1,8 @@
 #include "common.h"
 
+#ifndef _EXTENSIONS_PLUGIN_H
+#define _EXTENSIONS_PLUGIN_H
+
 /* dialog messages */
 #define DM_FIRST 0
 #define DM_CLOSE DM_FIRST+1 /* A signal that the dialog is about to close */
@@ -53,6 +56,42 @@
 #define DN_CLOSE DM_CLOSE /* Sent before the dialog is closed */
 
 #define DM_USER 0x4000 /* Starting value for user defined messages */
+
+// MessageBox: To indicate the buttons displayed in the message box,
+// specify one of the following values.
+#define MB_OK                   0x0
+#define MB_OKCANCEL             0x1
+#define MB_ABORTRETRYIGNORE     0x2
+#define MB_YESNOCANCEL          0x3
+#define MB_YESNO                0x4
+#define MB_RETRYCANCEL          0x5
+#define MB_ICONHAND             0x10
+#define MB_ICONQUESTION         0x20
+#define MB_ICONEXCLAMATION      0x30
+#define MB_ICONASTERICK         0x40
+
+#define MB_ICONWARNING          0x30
+#define MB_ICONERROR            0x10
+#define MB_ICONSTOP             0x10
+#define MB_ICONINFORMATION      0x40
+
+// MessageBox: To indicate the default button, specify one of the following values.
+#define MB_DEFBUTTON1           0x0
+#define MB_DEFBUTTON2           0x100
+#define MB_DEFBUTTON3           0x200
+#define MB_DEFBUTTON4           0x300
+
+// MessageBox: Return values
+#define ID_OK         1
+#define ID_CANCEL     2
+#define ID_ABORT      3
+#define ID_RETRY      4
+#define ID_IGNORE     5
+#define ID_YES        6
+#define ID_NO         7
+#define ID_CLOSE      8
+#define ID_HELP       9
+
 
 /* other */
 #define EXT_MAX_PATH  16384 /* 16 Kb */
@@ -109,3 +148,5 @@ void DCPCALL ExtensionFinalize(void* Reserved);
 #ifdef __cplusplus /* If this is a C++ compiler, use C linkage */
 }
 #endif
+
+#endif //_EXTENSIONS_PLUGIN_H

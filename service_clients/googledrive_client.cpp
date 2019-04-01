@@ -21,6 +21,106 @@ License along with this library; if not, write to the Free Software
 #include "googledrive_client.h"
 #include "../plugin_utils.h"
 
+const char* exportDlg = R"(
+object dialogBox: TDialogBox
+  Left = 2200
+  Height = 115
+  Top = 186
+  Width = 318
+  Caption = 'Export'
+  OnShow = DialogBoxShow
+  Position = poScreenCenter
+  BorderIcons = [biSystemMenu]
+  BorderStyle = bsDialog
+  ClientHeight = 115
+  ClientWidth = 318
+  LCLVersion = '2.0.0.4'
+  object cmbOptions: TComboBox
+    Left = 8
+    Height = 27
+    Top = 32
+    Width = 296
+    ItemHeight = 0
+    TabOrder = 0
+    Text = ''
+  end
+  object btnOK: TBitBtn
+    Left = 144
+    Height = 30
+    Top = 72
+    Width = 75
+    Default = True
+    DefaultCaption = True
+    Kind = bkOK
+    ModalResult = 1
+    TabOrder = 1
+    OnClick = ButtonClick
+  end
+  object btnCancel: TBitBtn
+    Left = 229
+    Height = 30
+    Top = 72
+    Width = 75
+    Cancel = True
+    DefaultCaption = True
+    Kind = bkCancel
+    ModalResult = 2
+    TabOrder = 2
+    OnClick = ButtonClick
+  end
+  object lblHead: TLabel
+    Left = 8
+    Height = 17
+    Top = 8
+    Width = 157
+    Caption = 'Export Google Document to:'
+    ParentColor = False
+  end
+end
+)";
+
+struct mimeType {
+    std::string mType;
+    std::string name;
+    std::string extension;
+
+    mimeType(std::string mType, std::string name, std::string ext): mType(mType), name(name), extension(ext) {}
+};
+
+std::map<std::string, std::vector<mimeType> > export_types {
+        {"application/vnd.google-apps.drawing", {
+             mimeType("image/jpeg", "JPEG", "jpeg"), mimeType("image/png", "PNG", "png"),
+             mimeType("image/svg+xml", "SVG", "svg"), mimeType("application/pdf", "PDF", "pdf")
+           }
+        },
+        {"application/vnd.google-apps.document", {
+             mimeType("text/html", "HTML", "html"), mimeType("application/zip", "HTML (zipped)", "zip"),
+             mimeType("text/plain", "Plain text", "txt"), mimeType("application/rtf", "Rich text", "rtf"),
+             mimeType("application/vnd.oasis.opendocument.text", "Open Office doc", "odt"), mimeType("application/pdf", "PDF", "pdf"),
+             mimeType("application/vnd.openxmlformats-officedocument.wordprocessingml.document", "MS Word document", "doc"),
+             mimeType("application/epub+zip", "EPUB", "epub")
+           }
+        },
+        {"application/vnd.google-apps.spreadsheet", {
+             mimeType("application/vnd.openxmlformats-officedocument.spreadsheetml.sheet", "MS Excel", "xlsx"),
+             mimeType("application/x-vnd.oasis.opendocument.spreadsheet", "Open Office sheet", "ods"),
+             mimeType("application/pdf", "PDF", "pdf"), mimeType("text/csv", "CSV (first sheet only)", "csv"),
+             mimeType("text/tab-separated-values", "TSV (first sheet only)", "tsv"),
+             mimeType("application/zip", "HTML (zipped)", "zip")
+          }
+        },
+        {"application/vnd.google-apps.presentation", {
+             mimeType("application/vnd.openxmlformats-officedocument.presentationml.presentation", "MS PowerPoint", "ppt"),
+             mimeType("application/vnd.oasis.opendocument.presentation", "Open Office presentation", "odp"),
+             mimeType("application/pdf", "PDF", "pdf"),
+             mimeType("text/plain", "Plain text", "txt")
+          }
+        }
+};
+
+std::string g_path;
+
+extern std::unique_ptr<tExtensionStartupInfo> gExtensionInfoPtr;
 
 GoogleDriveClient::GoogleDriveClient()
 {
@@ -134,6 +234,7 @@ pResources GoogleDriveClient::prepare_folder_result(json js, std::string &path)
             p += "/";
         p += item["name"].get<std::string>();
         m_resourceNamesMap[p] = item["id"].get<std::string>();
+        m_mimetypesMap[p] = item["mimeType"].get<std::string>();
 
         i++;
     }
@@ -194,14 +295,59 @@ void GoogleDriveClient::removeResource(std::string utf8Path)
     }
 }
 
+intptr_t DlgProcExport(uintptr_t pDlg, char *DlgItemName, intptr_t Msg, intptr_t wParam, intptr_t lParam)
+{
+    std::map<std::string, std::vector<mimeType> >::iterator it;
+    switch (Msg){
+
+        case DN_INITDIALOG:
+            it = export_types.find(g_path);
+
+            for(mimeType& mt: it->second)
+                gExtensionInfoPtr->SendDlgMsg(pDlg, "cmbOptions", DM_LISTADD, (intptr_t)mt.name.c_str(), (intptr_t)mt.mType.c_str());
+
+            break;
+
+        case DN_CLICK:
+            if(strcmp(DlgItemName, "btnOK")==0){
+                int current = (int)gExtensionInfoPtr->SendDlgMsg(pDlg, "cmbOptions", DM_LISTGETITEMINDEX, 0, 0);
+                char *mime = (char*)gExtensionInfoPtr->SendDlgMsg(pDlg, "cmbOptions", DM_LISTGETDATA, current, 0);
+                g_path = mime;
+
+                gExtensionInfoPtr->SendDlgMsg(pDlg, DlgItemName, DM_CLOSE, 1, 0);
+            } else if(strcmp(DlgItemName, "btnCancel")==0){
+                gExtensionInfoPtr->SendDlgMsg(pDlg, DlgItemName, DM_CLOSE, 2, 0);
+            }
+
+            break;
+    }
+
+    return 0;
+}
+
 void GoogleDriveClient::downloadFile(std::string path, std::ofstream &ofstream)
 {
     if(m_resourceNamesMap.find(path) == m_resourceNamesMap.end())
         throw std::runtime_error("resource ID not found");
 
+    bool exportedType = (export_types.find(m_mimetypesMap[path]) != export_types.end() );
+
     std::string url("/drive/v3/files/");
     url += m_resourceNamesMap[path];
-    url += "?alt=media";
+
+    if(exportedType){
+        url += "/export";
+        if(gExtensionInfoPtr){
+            g_path = m_mimetypesMap[path];
+            BOOL res = gExtensionInfoPtr->DialogBoxLFM((intptr_t)exportDlg, strlen(exportDlg), DlgProcExport);
+            if(!res)
+                throw std::runtime_error("Cancel export");
+
+            url += "?mimeType=" + g_path;
+        }
+    } else {
+        url += "?alt=media";
+    }
 
     auto r = m_http_client->Get(url.c_str(), m_headers);
 

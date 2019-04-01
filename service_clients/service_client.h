@@ -26,6 +26,7 @@ License along with this library; if not, write to the Free Software
 #include "../common.h"
 #include "../json.hpp"
 #include "../library.h"
+#include "../extension.h"
 
 using namespace nlohmann;
 
@@ -108,6 +109,7 @@ public:
     virtual void set_port(int port) { m_port = port; };
 
     virtual void set_client_id(std::string client_id) { m_client_id = client_id; };
+
 };
 
 #endif //CLOUD_STORAGE_SERVICE_CLIENT_H

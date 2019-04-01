@@ -69,6 +69,7 @@ private:
     httplib::Headers m_headers;
 
     std::map<std::string, std::string> m_resourceNamesMap;
+    std::map<std::string, std::string> m_mimetypesMap;
 
     void throw_response_error(httplib::Response* resp);
     pResources prepare_folder_result(json json, std::string& path);
