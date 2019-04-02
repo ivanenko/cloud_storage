@@ -88,7 +88,7 @@ public:
 
     virtual void removeResource(std::string utf8Path) = 0;
 
-    virtual void downloadFile(std::string path, std::ofstream &ofstream) = 0;
+    virtual void downloadFile(std::string path, std::ofstream &ofstream, std::string localPath) = 0;
 
     virtual void uploadFile(std::string path, std::ifstream &ifstream, BOOL overwrite) = 0;
 

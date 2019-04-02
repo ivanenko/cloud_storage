@@ -45,7 +45,7 @@ public:
 
     void removeResource(std::string utf8Path);
 
-    void downloadFile(std::string path, std::ofstream &ofstream);
+    void downloadFile(std::string path, std::ofstream &ofstream, std::string localPath);
 
     void uploadFile(std::string path, std::ifstream &ifstream, BOOL overwrite);
 

@@ -150,7 +150,7 @@ void DropboxClient::removeResource(std::string utf8Path)
         throw_response_error(r.get());
 }
 
-void DropboxClient::downloadFile(std::string path, std::ofstream &ofstream)
+void DropboxClient::downloadFile(std::string path, std::ofstream &ofstream, std::string localPath)
 {
     httplib::SSLClient cli("content.dropboxapi.com");
     json jsParams = { {"path", path} };

@@ -399,7 +399,7 @@ int DCPCALL FsGetFileW(WCHAR* RemoteName, WCHAR* LocalName, int CopyFlags, Remot
         splitPath(wRemoteName, strConnection, strServicePath);
 
         ServiceClient* client = getServiceClient(gJsonConfig, strConnection);
-        client->downloadFile(strServicePath, ofs);
+        client->downloadFile(strServicePath, ofs, UTF16toUTF8(wLocalName.data()));
         gProgressProcW(gPluginNumber, RemoteName, LocalName, 100);
 
         if(CopyFlags & FS_COPYFLAGS_MOVE)

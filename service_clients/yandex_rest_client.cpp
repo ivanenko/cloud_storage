@@ -199,7 +199,7 @@ void YandexRestClient::wait_success_operation(std::string &body)
 
 }
 
-void YandexRestClient::downloadFile(std::string path, std::ofstream &ofstream)
+void YandexRestClient::downloadFile(std::string path, std::ofstream &ofstream, std::string localPath)
 {
     std::string url("/v1/disk/resources/download?path=");
     url += url_encode(path);

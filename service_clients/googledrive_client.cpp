@@ -325,13 +325,15 @@ intptr_t DlgProcExport(uintptr_t pDlg, char *DlgItemName, intptr_t Msg, intptr_t
     return 0;
 }
 
-void GoogleDriveClient::downloadFile(std::string path, std::ofstream &ofstream)
+void GoogleDriveClient::downloadFile(std::string path, std::ofstream &ofstream, std::string localPath)
 {
     if(m_resourceNamesMap.find(path) == m_resourceNamesMap.end())
         throw std::runtime_error("resource ID not found");
 
-    bool exportedType = (export_types.find(m_mimetypesMap[path]) != export_types.end() );
+    auto it = export_types.find(m_mimetypesMap[path]);
+    bool exportedType = (it != export_types.end() );
 
+    std::string newExtension;
     std::string url("/drive/v3/files/");
     url += m_resourceNamesMap[path];
 
@@ -344,6 +346,9 @@ void GoogleDriveClient::downloadFile(std::string path, std::ofstream &ofstream)
                 throw std::runtime_error("Cancel export");
 
             url += "?mimeType=" + g_path;
+            for(mimeType& mt: it->second)
+                if(mt.mType == g_path)
+                    newExtension = mt.extension;
         }
     } else {
         url += "?alt=media";
@@ -353,6 +358,11 @@ void GoogleDriveClient::downloadFile(std::string path, std::ofstream &ofstream)
 
     if(r.get() && r->status == 200){
         ofstream.write(r->body.data(), r->body.size());
+        if(!newExtension.empty()){
+            ofstream.close();
+            std::string newName = localPath + "." + newExtension;
+            std::rename(localPath.c_str(), newName.c_str());
+        }
     } else {
         throw_response_error(r.get());
     }
