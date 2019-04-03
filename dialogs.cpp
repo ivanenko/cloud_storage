@@ -125,7 +125,7 @@ end
 const char* connection_props_dialog = R"(
 object DialogBox: TDialogBox
   Left = 2287
-  Height = 251
+  Height = 287
   Top = 280
   Width = 426
   AutoSize = True
@@ -134,16 +134,16 @@ object DialogBox: TDialogBox
   Caption = 'Connection settings'
   ChildSizing.LeftRightSpacing = 10
   ChildSizing.TopBottomSpacing = 10
-  ClientHeight = 251
+  ClientHeight = 287
   ClientWidth = 426
   OnShow = DialogBoxShow
   Position = poScreenCenter
-  LCLVersion = '1.8.4.0'
+  LCLVersion = '2.0.0.4'
 
   object btnOK: TBitBtn
     Left = 256
     Height = 30
-    Top = 208
+    Top = 248
     Width = 75
     Default = True
     DefaultCaption = True
@@ -155,7 +155,7 @@ object DialogBox: TDialogBox
   object btnCancel: TBitBtn
     Left = 341
     Height = 30
-    Top = 208
+    Top = 248
     Width = 75
     Cancel = True
     DefaultCaption = True
@@ -165,50 +165,101 @@ object DialogBox: TDialogBox
     TabOrder = 3
   end
 
-  object getTokenRadio: TRadioGroup
+  object PageControl1: TPageControl
     Left = 8
-    Height = 72
-    Top = 8
+    Height = 240
+    Top = 0
     Width = 408
-    AutoFill = True
-    Caption = 'OAuth token'
-    ChildSizing.LeftRightSpacing = 6
-    ChildSizing.EnlargeHorizontal = crsHomogenousChildResize
-    ChildSizing.EnlargeVertical = crsHomogenousChildResize
-    ChildSizing.ShrinkHorizontal = crsScaleChilds
-    ChildSizing.ShrinkVertical = crsScaleChilds
-    ChildSizing.Layout = cclLeftToRightThenTopToBottom
-    ChildSizing.ControlsPerLine = 1
-    ClientHeight = 53
-    ClientWidth = 404
-    Items.Strings = (
-      'Get OAuth token from service'
-      'Enter token manually'
-    )
-    TabOrder = 0
-  end
-  object saveMethodRadio: TRadioGroup
-    Left = 8
-    Height = 105
-    Top = 88
-    Width = 409
-    AutoFill = True
-    Caption = 'Save method'
-    ChildSizing.LeftRightSpacing = 6
-    ChildSizing.EnlargeHorizontal = crsHomogenousChildResize
-    ChildSizing.EnlargeVertical = crsHomogenousChildResize
-    ChildSizing.ShrinkHorizontal = crsScaleChilds
-    ChildSizing.ShrinkVertical = crsScaleChilds
-    ChildSizing.Layout = cclLeftToRightThenTopToBottom
-    ChildSizing.ControlsPerLine = 1
-    ClientHeight = 86
-    ClientWidth = 405
-    Items.Strings = (
-      'Do not save token'
-      'Save token in config file'
-      'Save token in Totalcmd password manager'
-    )
-    TabOrder = 1
+    ActivePage = TabSheet1
+    TabIndex = 0
+    TabOrder = 2
+    object TabSheet1: TTabSheet
+      Caption = 'Authorization'
+      ClientHeight = 205
+      ClientWidth = 402
+      object getTokenRadio: TRadioGroup
+        Left = 5
+        Height = 72
+        Top = 8
+        Width = 393
+        AutoFill = True
+        Caption = 'OAuth token'
+        ChildSizing.LeftRightSpacing = 6
+        ChildSizing.EnlargeHorizontal = crsHomogenousChildResize
+        ChildSizing.EnlargeVertical = crsHomogenousChildResize
+        ChildSizing.ShrinkHorizontal = crsScaleChilds
+        ChildSizing.ShrinkVertical = crsScaleChilds
+        ChildSizing.Layout = cclLeftToRightThenTopToBottom
+        ChildSizing.ControlsPerLine = 1
+        ClientHeight = 53
+        ClientWidth = 392
+        Items.Strings = (
+          'Get OAuth token from service'
+          'Enter token manually'
+        )
+        TabOrder = 0
+      end
+      object saveMethodRadio: TRadioGroup
+        Left = 5
+        Height = 105
+        Top = 88
+        Width = 393
+        AutoFill = True
+        Caption = 'Save method'
+        ChildSizing.LeftRightSpacing = 6
+        ChildSizing.EnlargeHorizontal = crsHomogenousChildResize
+        ChildSizing.EnlargeVertical = crsHomogenousChildResize
+        ChildSizing.ShrinkHorizontal = crsScaleChilds
+        ChildSizing.ShrinkVertical = crsScaleChilds
+        ChildSizing.Layout = cclLeftToRightThenTopToBottom
+        ChildSizing.ControlsPerLine = 1
+        ClientHeight = 86
+        ClientWidth = 392
+        Items.Strings = (
+          'Do not save token'
+          'Save token in config file'
+          'Save token in Totalcmd password manager'
+        )
+        TabOrder = 1
+      end
+    end
+    object TabSheet2: TTabSheet
+      Caption = 'OAuth2 settings'
+      ClientHeight = 205
+      ClientWidth = 402
+      object Label1: TLabel
+        Left = 8
+        Height = 17
+        Top = 8
+        Width = 48
+        Caption = 'Client ID'
+        ParentColor = False
+      end
+      object edtClientID: TEdit
+        Left = 8
+        Height = 27
+        Top = 30
+        Width = 288
+        TabOrder = 0
+      end
+      object Label2: TLabel
+        Left = 8
+        Height = 17
+        Top = 72
+        Width = 119
+        Caption = 'Local http server port'
+        ParentColor = False
+      end
+      object edtServerPort: TEdit
+        Left = 8
+        Height = 27
+        Top = 94
+        Width = 96
+        NumbersOnly = True
+        TabOrder = 1
+        Text = '3359'
+      end
+    end
   end
 end
 )";
@@ -281,6 +332,7 @@ BOOL show_new_connection_dlg(nlohmann::json &json_obj)
 //============================== Connection properties dialog
 intptr_t DCPCALL DlgProcProps(uintptr_t pDlg, char *DlgItemName, intptr_t Msg, intptr_t wParam, intptr_t lParam)
 {
+    char *clientId, *portNumber;
     switch (Msg){
         case DN_INITDIALOG:
             if(gpJsonConnection->at("get_token_method").is_string()
@@ -297,6 +349,14 @@ intptr_t DCPCALL DlgProcProps(uintptr_t pDlg, char *DlgItemName, intptr_t Msg, i
                 gExtensionInfoPtr->SendDlgMsg(pDlg, "saveMethodRadio", DM_LISTSETITEMINDEX, 2, 0);
             else
                 gExtensionInfoPtr->SendDlgMsg(pDlg, "saveMethodRadio", DM_LISTSETITEMINDEX, 0, 0); // dont_save by default
+
+            if(gpJsonConnection->at("client_id").is_string())
+                gExtensionInfoPtr->SendDlgMsg(pDlg, "edtClientID", DM_SETTEXT, (intptr_t)gpJsonConnection->at("client_id").get<std::string>().c_str(), 0);
+
+            if(gpJsonConnection->at("port").is_number()){
+                std::string port = std::to_string(gpJsonConnection->at("port").get<int>());
+                gExtensionInfoPtr->SendDlgMsg(pDlg, "edtServerPort", DM_SETTEXT, (intptr_t)port.c_str(), 0);
+            }
 
             break;
 
@@ -318,6 +378,19 @@ intptr_t DCPCALL DlgProcProps(uintptr_t pDlg, char *DlgItemName, intptr_t Msg, i
                         gpJsonConnection->at("save_type") = "dont_save";
                         gpJsonConnection->at("oauth_token") = "";
                 }
+
+                clientId = (char*)gExtensionInfoPtr->SendDlgMsg(pDlg, "edtClientID", DM_GETTEXT, 1, 0);
+                if(strlen(clientId) > 0)
+                    gpJsonConnection->at("client_id") = clientId;
+                else
+                    gpJsonConnection->at("client_id") = nullptr;
+                //gpJsonConnection->at("client_id") = (strlen(clientId) > 0 ? clientId: nullptr);
+
+                portNumber = (char*)gExtensionInfoPtr->SendDlgMsg(pDlg, "edtServerPort", DM_GETTEXT, 1, 0);
+                if(strlen(portNumber) > 0)
+                    gpJsonConnection->at("port") = std::atoi(portNumber);
+                else
+                    gpJsonConnection->at("port") = nullptr;
 
                 gExtensionInfoPtr->SendDlgMsg(pDlg, DlgItemName, DM_CLOSE, 1, 0);
             } else if(strcmp(DlgItemName, "btnCancel")==0){
