@@ -508,6 +508,7 @@ int DCPCALL FsExecuteFileW(HWND MainWin, WCHAR* RemoteName, WCHAR* Verb)
     if(wVerb.find((WCHAR*)u"properties") == 0){
         if(wRemoteName == (WCHAR*) u"/"){ // show global plugin properties
             // TODO show global plugin config dialog
+            return FS_EXEC_OK;
         }
 
         if(isConnectionName(RemoteName)){

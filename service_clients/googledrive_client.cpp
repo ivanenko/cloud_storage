@@ -18,6 +18,7 @@ License along with this library; if not, write to the Free Software
         Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301 USA
 */
 
+#include <regex>
 #include "googledrive_client.h"
 #include "../plugin_utils.h"
 
@@ -380,8 +381,7 @@ void GoogleDriveClient::uploadFile(std::string path, std::ifstream &ifstream, BO
 
     json jsParams = {
             {"name", resourceName},
-            {"parents", {parentFolderId}},
-            //TODO add create_datetime
+            {"parents", {parentFolderId}}
     };
 
     auto r = m_http_client->Post("/upload/drive/v3/files?uploadType=resumable", m_headers, jsParams.dump(), "application/json");
@@ -394,18 +394,70 @@ void GoogleDriveClient::uploadFile(std::string path, std::ifstream &ifstream, BO
 
     std::string downloadUrl = r->get_header_value("Location").substr(26); // remove 'https://www.googleapis.com'
 
+    ifstream.seekg(0, ifstream.end);
+    int fileSize = ifstream.tellg();
+    ifstream.seekg(0, ifstream.beg);
+
+    httplib::Headers header = m_headers;
+    int offset = 0;
     std::stringstream body;
-    body << ifstream.rdbuf();
+    auto io_buffer = ifstream.rdbuf();
 
-    r = m_http_client->Put(downloadUrl.c_str(), m_headers, body.str(), "application/octet-stream");
+    int count = 0;
 
-    if(r.get() && (r->status==200 || r->status==201)){
-        return;
-    } else {
-        // TODO resume interrupted upload
-        // https://developers.google.com/drive/api/v3/resumable-upload
-        throw_response_error(r.get());
-    }
+    do{
+        io_buffer->pubseekpos(offset);
+        body.str(std::string()); // clear body
+        body << io_buffer;
+
+        r = m_http_client->Put(downloadUrl.c_str(), header, body.str(), "application/octet-stream");
+
+        if(r.get() && (r->status==200 || r->status==201))
+            return;
+
+        if(r.get() && ((r->status>=500 && r->status<600) || r->status==403)) {
+            // resume interrupted upload (https://developers.google.com/drive/api/v3/manage-uploads#resumable)
+            std::string empty;
+            header.erase("Content-Range");
+            header.emplace("Content-Range", "bytes */*");
+            r = m_http_client->Put(downloadUrl.c_str(), header, empty, "application/octet-stream");
+
+            if(r.get() && r->status==200 || r->status==201)
+                return;
+
+            if(r.get() && r->status==404)
+                throw service_client_exception(404, "The upload session has expired");
+
+            if(r.get() && r->status==308){
+                int to;
+                std::smatch m;
+                std::string range_value = r->get_header_value("Range");
+                if (std::regex_search(range_value, m, std::regex(".*=\\s*(\\d+)-(\\d+)"))) {
+                    to = std::stoi(m[2].str());
+                } else {
+                    throw std::runtime_error("Error parsing Range header");
+                }
+
+                header.erase("Content-Range");
+                offset = to + 1;
+                range_value = "bytes " + std::to_string(offset) + "-" + std::to_string(fileSize-1) + "/" + std::to_string(fileSize);
+                header.emplace("Content-Range", range_value);
+                std::this_thread::sleep_for(std::chrono::seconds(2));
+
+            } else {
+                throw std::runtime_error("Error uploading file");
+            }
+
+        } else {
+            throw_response_error(r.get());
+        }
+
+        count++;
+    } while(count<10);
+
+    if(count >= 10)
+        throw std::runtime_error("Too many attempts");
+
 }
 
 void GoogleDriveClient::move(std::string from, std::string to, BOOL overwrite)
