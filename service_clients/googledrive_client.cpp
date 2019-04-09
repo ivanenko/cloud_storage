@@ -375,8 +375,11 @@ void GoogleDriveClient::uploadFile(std::string path, std::ifstream &ifstream, BO
     int p = path.find_last_of('/');
     if(p>0){
         std::string parentFolderPath = path.substr(0, p);
+        resourceName = path.substr(p+1);
         if(m_resourceNamesMap.find(parentFolderPath) != m_resourceNamesMap.end())
             parentFolderId = m_resourceNamesMap[parentFolderPath];
+    } else {
+        resourceName = path.substr(1);
     }
 
     json jsParams = {
