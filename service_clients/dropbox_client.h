@@ -71,6 +71,9 @@ private:
     void throw_response_error(httplib::Response* resp);
     pResources prepare_folder_result(json json, BOOL isRoot);
 
+    void _upload_small_file(std::string& path, std::ifstream &ifstream, BOOL overwrite);
+    void _upload_big_file(std::string& path, std::ifstream &ifstream, BOOL overwrite, int fileSize);
+
     void downloadZip(std::string pathFrom, std::string pathTo);
 };
 

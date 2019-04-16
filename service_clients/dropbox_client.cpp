@@ -21,6 +21,7 @@ License along with this library; if not, write to the Free Software
 #include "dropbox_client.h"
 #include "../plugin_utils.h"
 
+#define CHUNK_SIZE 150000000
 
 DropboxClient::DropboxClient()
 {
@@ -170,8 +171,19 @@ void DropboxClient::downloadFile(std::string path, std::ofstream &ofstream, std:
 
 void DropboxClient::uploadFile(std::string path, std::ifstream &ifstream, BOOL overwrite)
 {
-    //TODO use upload_session/start for files more than 150Mb
+    ifstream.seekg(0, ifstream.end);
+    int fileSize = ifstream.tellg();
+    ifstream.seekg(0, ifstream.beg);
 
+    if(fileSize < CHUNK_SIZE){ // use upload_session/start for files more than 150Mb
+        _upload_small_file(path, ifstream, overwrite);
+    } else {
+        _upload_big_file(path, ifstream, overwrite, fileSize);
+    }
+}
+
+void DropboxClient::_upload_small_file(std::string& path, std::ifstream &ifstream, BOOL overwrite)
+{
     httplib::SSLClient cli("content.dropboxapi.com");
     json jsParams = {
             {"path", path},
@@ -181,7 +193,6 @@ void DropboxClient::uploadFile(std::string path, std::ifstream &ifstream, BOOL o
 
     httplib::Headers hd = m_headers;
     hd.emplace("Dropbox-API-Arg", jsParams.dump());
-    std::string strEmpty;
 
     std::stringstream body;
     body << ifstream.rdbuf();
@@ -195,6 +206,78 @@ void DropboxClient::uploadFile(std::string path, std::ifstream &ifstream, BOOL o
     }
 
     //TODO throw status 409 if file exists
+}
+
+void DropboxClient::_upload_big_file(std::string& path, std::ifstream &ifstream, BOOL overwrite, int fileSize)
+{
+    int count = fileSize / CHUNK_SIZE + ((fileSize % CHUNK_SIZE) > 0 ? 1 : 0);
+
+    httplib::SSLClient cli("content.dropboxapi.com");
+    httplib::Headers hd = m_headers;
+    json jsParams = { {"close", false} };
+    hd.emplace("Dropbox-API-Arg", jsParams.dump());
+
+    int offset = 0;
+    std::string body;
+    body.reserve(CHUNK_SIZE);
+    body.resize(CHUNK_SIZE);
+    ifstream.read(&body[0], CHUNK_SIZE);
+
+    auto r = cli.Post("/2/files/upload_session/start", hd, body, "application/octet-stream");
+
+    if(!r.get() || r->status!=200)
+        throw_response_error(r.get());
+
+    const auto js = json::parse(r->body);
+    std::string session_id = js["session_id"].get<std::string>();
+
+    int c = count - 2;
+    while(c > 0){
+        offset += CHUNK_SIZE;
+        c--;
+
+        jsParams = {
+                {"cursor",
+                          { {"session_id", session_id}, {"offset", offset} }
+                },
+                {"close", false}
+        };
+        hd.erase("Dropbox-API-Arg");
+        hd.emplace("Dropbox-API-Arg", jsParams.dump());
+        ifstream.read(&body[0], CHUNK_SIZE);
+        r = cli.Post("/2/files/upload_session/append_v2", hd, body, "application/octet-stream");
+
+        if(!r.get() || r->status!=200)
+            throw_response_error(r.get());
+
+        //TODO check incorrect_offset error - to restart from correct one status = 409
+    }
+
+    offset += CHUNK_SIZE;
+    jsParams = {
+            {"cursor",
+                      { {"session_id", session_id}, {"offset", offset} }
+            },
+            {"commit",
+                    {
+                            {"path", path},
+                            {"mode", { {".tag", (overwrite? "overwrite": "add")} } },
+                            {"autorename", false}
+                    }
+            }
+    };
+    hd.erase("Dropbox-API-Arg");
+    hd.emplace("Dropbox-API-Arg", jsParams.dump());
+    body.resize(fileSize - offset);
+    ifstream.read(&body[0], fileSize - offset);
+    r = cli.Post("/2/files/upload_session/finish", hd, body, "application/octet-stream");
+
+    if(r.get() && r->status == 200){
+        return;
+    } else {
+        throw_response_error(r.get());
+    }
+
 }
 
 void DropboxClient::move(std::string from, std::string to, BOOL overwrite)
