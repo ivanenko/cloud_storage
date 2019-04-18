@@ -95,9 +95,8 @@ pResources YandexRestClient::prepare_folder_result(json json, BOOL isRoot)
     int total = json["_embedded"]["total"].get<int>();
 
     pResources pRes = new tResources;
-    pRes->nSize = isRoot ? total+1: total;
     pRes->nCount = 0;
-    pRes->resource_array = new WIN32_FIND_DATAW[pRes->nSize];
+    pRes->resource_array.resize(isRoot ? total+1: total);
 
     int i=0;
     for(auto& item: json["_embedded"]["items"]){

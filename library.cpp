@@ -175,12 +175,12 @@ HANDLE DCPCALL FsFindFirstW(WCHAR* Path, WIN32_FIND_DATAW *FindData)
         gRequestProcW(gPluginNumber, RT_MsgOK, (WCHAR*)u"Error", (WCHAR*) UTF8toUTF16(e.what()).c_str(), NULL, 0);
     }
 
-    if(!pRes || pRes->nSize==0)
+    if(!pRes || pRes->resource_array.size()==0)
         return (HANDLE)-1;
 
-    if(pRes->resource_array && pRes->nSize>0){
+    if(pRes->resource_array.size()>0){
         memset(FindData, 0, sizeof(WIN32_FIND_DATAW));
-        memcpy(FindData, pRes->resource_array, sizeof(WIN32_FIND_DATAW));
+        memcpy(FindData, &(pRes->resource_array[0]), sizeof(WIN32_FIND_DATAW));
         pRes->nCount++;
     }
 
@@ -192,7 +192,7 @@ BOOL DCPCALL FsFindNextW(HANDLE Hdl, WIN32_FIND_DATAW *FindData)
 {
     pResources pRes = (pResources) Hdl;
 
-    if(pRes && (pRes->nCount < pRes->nSize) ){
+    if(pRes && (pRes->nCount < pRes->resource_array.size()) ){
         memcpy(FindData, &pRes->resource_array[pRes->nCount], sizeof(WIN32_FIND_DATAW));
         pRes->nCount++;
         return true;
@@ -204,9 +204,7 @@ BOOL DCPCALL FsFindNextW(HANDLE Hdl, WIN32_FIND_DATAW *FindData)
 int DCPCALL FsFindClose(HANDLE Hdl){
     pResources pRes = (pResources) Hdl;
     if(pRes){
-        if(pRes->resource_array)
-            delete[] pRes->resource_array;
-
+        pRes->resource_array.clear();
         delete pRes;
     }
 

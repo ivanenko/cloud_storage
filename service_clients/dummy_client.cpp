@@ -49,13 +49,10 @@ pResources DummyClient::get_resources(std::string path, BOOL isTrash) {
 pResources DummyClient::prepare_folder_result(json& result)
 {
     pResources pRes = new tResources;
-    pRes->nSize = 0;
     pRes->nCount = 0;
-    pRes->resource_array = NULL;
 
     if(result.is_array() && result.size()>0){
-        pRes->nSize = result.size();
-        pRes->resource_array = new WIN32_FIND_DATAW[pRes->nSize];
+        pRes->resource_array.resize(result.size());
 
         int i=0;
         for(auto& o: result){

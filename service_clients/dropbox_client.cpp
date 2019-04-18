@@ -97,9 +97,8 @@ pResources DropboxClient::prepare_folder_result(json js, BOOL isRoot)
     int total = js["entries"].size();
 
     pResources pRes = new tResources;
-    pRes->nSize = total;
     pRes->nCount = 0;
-    pRes->resource_array = new WIN32_FIND_DATAW[pRes->nSize];
+    pRes->resource_array.resize(total);
 
     int i=0;
     for(auto& item: js["entries"]){
@@ -247,10 +246,14 @@ void DropboxClient::_upload_big_file(std::string& path, std::ifstream &ifstream,
         ifstream.read(&body[0], CHUNK_SIZE);
         r = cli.Post("/2/files/upload_session/append_v2", hd, body, "application/octet-stream");
 
-        if(!r.get() || r->status!=200)
+        if(!r.get() || r->status!=200){
+            // 409 is reserved for file exists error
+            if(r->status == 409)
+                r->status = 500;
             throw_response_error(r.get());
+        }
 
-        //TODO check incorrect_offset error - to restart from correct one status = 409
+        //TODO check incorrect_offset error - to restart from correct one, status = 409
     }
 
     offset += CHUNK_SIZE;

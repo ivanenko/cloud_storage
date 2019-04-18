@@ -76,13 +76,10 @@ BOOL file_exists(const std::string& filename)
 pResources prepare_connections(const nlohmann::json &connections)
 {
     pResources pRes = new tResources;
-    pRes->nSize = 0;
     pRes->nCount = 0;
-    pRes->resource_array = NULL;
 
     if(connections.is_array() && connections.size()>0){
-        pRes->nSize = connections.size();
-        pRes->resource_array = new WIN32_FIND_DATAW[pRes->nSize];
+        pRes->resource_array.resize(connections.size());
 
         int i=0;
         for(auto obj: connections){
