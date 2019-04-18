@@ -74,57 +74,70 @@ pResources DropboxClient::get_resources(std::string path, BOOL isTrash)
     json jsBody = {
             {"path", (path=="/")? "": path},
             {"recursive", false},
-            {"limit", 2000}
+            {"limit", 200}
     };
 
     auto r = m_http_client->Post("/2/files/list_folder", m_headers, jsBody.dump(), "application/json");
 
     if(r.get() && r->status==200){
-        const auto js = json::parse(r->body);
+        pResources pRes = new tResources;
+        pRes->nCount = 0;
 
-        //TODO check if has_more=true
-        return prepare_folder_result(js, (path == "/") );
+        auto js = json::parse(r->body);
+        prepare_folder_result(js, pRes, (path == "/") );
+
+        while(js["has_more"].is_boolean() && js["has_more"].get<bool>() == true){
+            jsBody = {
+                    {"cursor", js["cursor"].get<std::string>()}
+            };
+            r = m_http_client->Post("/2/files/list_folder/continue", m_headers, jsBody.dump(), "application/json");
+            if(!r.get() || r->status!=200)
+                throw_response_error(r.get());
+
+            js = json::parse(r->body);
+            prepare_folder_result(js, pRes, (path == "/") );
+        }
+
+        return pRes;
     } else {
         throw_response_error(r.get());
     }
 }
 
-pResources DropboxClient::prepare_folder_result(json js, BOOL isRoot)
+void DropboxClient::prepare_folder_result(const json &js, pResources pRes, BOOL isRoot)
 {
     if(!js["entries"].is_array())
         throw std::runtime_error("Wrong Json format");
 
     int total = js["entries"].size();
-
-    pResources pRes = new tResources;
-    pRes->nCount = 0;
-    pRes->resource_array.resize(total);
+    pRes->resource_array.reserve(pRes->resource_array.size() + total);
 
     int i=0;
     for(auto& item: js["entries"]){
+        WIN32_FIND_DATAW file;
         wcharstring wName = UTF8toUTF16(item["name"].get<std::string>());
 
         size_t str_size = (MAX_PATH > wName.size()+1)? (wName.size()+1): MAX_PATH;
-        memcpy(pRes->resource_array[i].cFileName, wName.data(), sizeof(WCHAR) * str_size);
+        memcpy(file.cFileName, wName.data(), sizeof(WCHAR) * str_size);
 
         if(item[".tag"].get<std::string>() == "file") {
-            pRes->resource_array[i].dwFileAttributes = 0;
-            pRes->resource_array[i].nFileSizeLow = (DWORD) item["size"].get<int>();
-            pRes->resource_array[i].nFileSizeHigh = 0;
-            pRes->resource_array[i].ftCreationTime = parse_iso_time(item["client_modified"].get<std::string>());
-            pRes->resource_array[i].ftLastWriteTime = parse_iso_time(item["server_modified"].get<std::string>());
+            file.dwFileAttributes = 0;
+            file.nFileSizeLow = (DWORD) item["size"].get<int>();
+            file.nFileSizeHigh = 0;
+            file.ftCreationTime = parse_iso_time(item["client_modified"].get<std::string>());
+            file.ftLastWriteTime = parse_iso_time(item["server_modified"].get<std::string>());
         } else {
-            pRes->resource_array[i].dwFileAttributes = FILE_ATTRIBUTE_DIRECTORY;
-            pRes->resource_array[i].nFileSizeLow = 0;
-            pRes->resource_array[i].nFileSizeHigh = 0;
-            pRes->resource_array[i].ftCreationTime = get_now_time();
-            pRes->resource_array[i].ftLastWriteTime = get_now_time();
+            file.dwFileAttributes = FILE_ATTRIBUTE_DIRECTORY;
+            file.nFileSizeLow = 0;
+            file.nFileSizeHigh = 0;
+            file.ftCreationTime = get_now_time();
+            file.ftLastWriteTime = get_now_time();
         }
+
+        pRes->resource_array.push_back(file);
 
         i++;
     }
-
-    return pRes;
 }
 
 void DropboxClient::makeFolder(std::string utf8Path)
