@@ -27,6 +27,8 @@ License along with this library; if not, write to the Free Software
 #include "yandex_rest_client.h"
 #include "httplib.h"
 
+#define FILE_LIMIT 1000
+
 YandexRestClient::YandexRestClient(){
     m_client_id = "bc2f272cc37349b7a1320b9ac7826ebf";
     m_http_client = new httplib::SSLClient("cloud-api.yandex.net");
@@ -68,66 +70,73 @@ void YandexRestClient::set_oauth_token(const char *token)
     m_headers = { {"Authorization", header_token} };
 }
 
-pResources YandexRestClient::get_resources(std::string path, BOOL isTrash) {
-    //TODO turn off unnesesary fields
-    std::string url("/v1/disk/");
-    if(isTrash)
-        url += "trash/";
-    url += "resources?limit=1000&path=";
-    url += url_encode(path);
-    auto r = m_http_client->Get(url.c_str(), m_headers);
+pResources YandexRestClient::get_resources(std::string path, BOOL isTrash)
+{
+    int offset = 0;
+    int total = 0;
+    pResources pRes = new tResources;
+    pRes->nCount = 0;
 
-    if(r.get() && r->status==200){
-        const auto json = json::parse(r->body);
+    do{
+        std::string url("/v1/disk/");
+        if(isTrash)
+            url += "trash/";
+        url += "resources?limit=" + std::to_string(FILE_LIMIT) + "&offset=" + std::to_string(offset) + "&path=";
+        url += url_encode(path);
+        auto r = m_http_client->Get(url.c_str(), m_headers);
 
-        //TODO check if total > limit
-        return prepare_folder_result(json, (path == "/") );
-    } else {
-        throw_response_error(r.get());
+        if(r.get() && r->status==200){
+            const auto json = json::parse(r->body);
+            prepare_folder_result(json, (path == "/"), pRes, total);
+        } else {
+            throw_response_error(r.get());
+        }
+
+        offset += FILE_LIMIT;
+    } while(offset < total);
+
+    if(path == "/"){ // is root
+        WIN32_FIND_DATAW file;
+        memcpy(file.cFileName, u".Trash", sizeof(WCHAR) * 7);
+        file.dwFileAttributes = FILE_ATTRIBUTE_DIRECTORY;
+        file.nFileSizeLow = 0;
+        file.nFileSizeHigh = 0;
+        pRes->resource_array.push_back(file);
     }
+
+    return pRes;
 }
 
-pResources YandexRestClient::prepare_folder_result(json json, BOOL isRoot)
+void YandexRestClient::prepare_folder_result(json json, BOOL isRoot, pResources pRes, int& total)
 {
     if(json["_embedded"]["total"].is_null() || json["_embedded"]["items"].is_null())
         throw std::runtime_error("Wrong Json format");
 
-    int total = json["_embedded"]["total"].get<int>();
+    total = json["_embedded"]["total"].get<int>();
 
-    pResources pRes = new tResources;
-    pRes->nCount = 0;
-    pRes->resource_array.resize(isRoot ? total+1: total);
+    pRes->resource_array.reserve(isRoot ? total+1: total);
 
-    int i=0;
     for(auto& item: json["_embedded"]["items"]){
+        WIN32_FIND_DATAW file;
         wcharstring wName = UTF8toUTF16(item["name"].get<std::string>());
 
         size_t str_size = (MAX_PATH > wName.size()+1)? (wName.size()+1): MAX_PATH;
-        memcpy(pRes->resource_array[i].cFileName, wName.data(), sizeof(WCHAR) * str_size);
+        memcpy(file.cFileName, wName.data(), sizeof(WCHAR) * str_size);
 
         if(item["type"].get<std::string>() == "file") {
-            pRes->resource_array[i].dwFileAttributes = 0;
-            pRes->resource_array[i].nFileSizeLow = (DWORD) item["size"].get<int>();
-            pRes->resource_array[i].nFileSizeHigh = 0;
+            file.dwFileAttributes = 0;
+            file.nFileSizeLow = (DWORD) item["size"].get<int>();
+            file.nFileSizeHigh = 0;
         } else {
-            pRes->resource_array[i].dwFileAttributes = FILE_ATTRIBUTE_DIRECTORY;
-            pRes->resource_array[i].nFileSizeLow = 0;
-            pRes->resource_array[i].nFileSizeHigh = 0;
+            file.dwFileAttributes = FILE_ATTRIBUTE_DIRECTORY;
+            file.nFileSizeLow = 0;
+            file.nFileSizeHigh = 0;
         }
-        pRes->resource_array[i].ftCreationTime = parse_iso_time(item["created"].get<std::string>());
-        pRes->resource_array[i].ftLastWriteTime = parse_iso_time(item["modified"].get<std::string>());
+        file.ftCreationTime = parse_iso_time(item["created"].get<std::string>());
+        file.ftLastWriteTime = parse_iso_time(item["modified"].get<std::string>());
 
-        i++;
+        pRes->resource_array.push_back(file);
     }
-
-    if(isRoot){
-        memcpy(pRes->resource_array[total].cFileName, u".Trash", sizeof(WCHAR) * 7);
-        pRes->resource_array[total].dwFileAttributes = FILE_ATTRIBUTE_DIRECTORY;
-        pRes->resource_array[total].nFileSizeLow = 0;
-        pRes->resource_array[total].nFileSizeHigh = 0;
-    }
-
-    return pRes;
 }
 
 void YandexRestClient::makeFolder(std::string utf8Path)
@@ -307,7 +316,6 @@ void YandexRestClient::move(std::string from, std::string to, BOOL overwrite)
 
 void YandexRestClient::copy(std::string from, std::string to, BOOL overwrite)
 {
-    //TODO - max 'to' path is the 32760 symbols
     std::string url("/v1/disk/resources/copy?from=");
     url += url_encode(from) + "&path=" + url_encode(to);
     url += "&overwrite=";

@@ -70,7 +70,7 @@ private:
     void throw_response_error(httplib::Response* resp);
     void wait_success_operation(std::string &body);
     void _do_download(std::string url, std::ofstream &ofstream);
-    pResources prepare_folder_result(json json, BOOL isRoot);
+    void prepare_folder_result(json json, BOOL isRoot, pResources pRes, int& total);
 
 };
 
