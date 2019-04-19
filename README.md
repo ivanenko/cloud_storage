@@ -28,5 +28,9 @@ You can also create your own authorization apps, get its client_id and use it fo
 Read more about creating app for dropbox [here](https://www.dropbox.com/developers), or on [this wiki page](https://github.com/ivanenko/cloud_storage/wiki/Create-and-use-your-own-authorization-app) for all used services.
 Save your applications client_id in 'Connection settings' window, 'OAuth setting' tab.
 
+### Service specific features
+Every service provide specific and unique commands. It could be download files from internet directly to your storage, or export google document in different formats.
+You can read more about this on [wiki page](https://github.com/ivanenko/cloud_storage/wiki/Service-specific-features)
+
 ### Contribute
 If you want to add new service - [check this wiki page](https://github.com/ivanenko/cloud_storage/wiki)
