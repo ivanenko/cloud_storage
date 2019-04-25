@@ -1,4 +1,4 @@
-cmake_minimum_required(VERSION 3.13)
+cmake_minimum_required(VERSION 3.5)
 project(cloud_storage)
 
 set(CMAKE_CXX_STANDARD 14)
@@ -22,3 +22,4 @@ list(APPEND CLOUD_SERVICES
 add_library(cloud_storage SHARED library.cpp library.h service_clients/httplib.h json.hpp plugin_utils.h plugin_utils.cpp dialogs.cpp dialogs.h ${CLOUD_SERVICES})
 target_link_libraries(cloud_storage pthread ssl crypto)
 set_target_properties(cloud_storage PROPERTIES PREFIX "" SUFFIX ".wfx")
+#set_target_properties(cloud_storage PROPERTIES COMPILE_FLAGS "-m32" LINK_FLAGS "-m32" PREFIX "" SUFFIX "_32.wfx")

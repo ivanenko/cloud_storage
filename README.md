@@ -16,7 +16,12 @@ For now you can work with the following services: Google Drive, Dropbox, Yandex 
 You can get [latest release](https://github.com/ivanenko/cloud_storage/releases) and install it in "Options" window as WFX plugin.
 Or you can buld  it from code
 ```
-cmake --build cmake-build-release --target cloud_storage -- -j 2 -DCMAKE_BUILD_TYPE=Release
+sudo apt-get install g++ libssl-dev
+git clone https://github.com/ivanenko/cloud_storage.git
+cd cloud_storage
+mkdir cmake-build-release
+cmake -DCMAKE_CXX_COMPILER=g++ -DCMAKE_BUILD_TYPE=Release . -Bcmake-build-release
+cmake --build cmake-build-release --target cloud_storage -- -j 2
 ```
 Use cloud_storage.wfx file in cmake-build-release folder
 
