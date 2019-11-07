@@ -15,6 +15,8 @@ list(APPEND CLOUD_SERVICES
         service_clients/dropbox_client.cpp
         service_clients/googledrive_client.h
         service_clients/googledrive_client.cpp
+        service_clients/onedrive_client.h
+        service_clients/onedrive_client.cpp
         # add here your clients
 )
 
