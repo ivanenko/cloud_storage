@@ -210,10 +210,40 @@ void OneDriveClient::removeResource(std::string utf8Path)
     }
 }
 
-
 void OneDriveClient::downloadFile(std::string path, std::ofstream &ofstream, std::string localPath)
 {
+    if(m_resourceNamesMap.find(path) == m_resourceNamesMap.end())
+        throw std::runtime_error("resource ID not found");
 
+    std::string url("/v1.0/me/drive/items/");
+    url += m_resourceNamesMap[path];
+    url += "/content";
+
+    auto r = m_http_client->Get(url.c_str(), m_headers);
+    if(r.get() && r->status==302){
+        url = r->get_header_value("Location");
+
+        std::string server_url, request_url;
+
+        std::smatch m;
+        auto pattern = std::regex("https://(.+?)(/.+)");
+        if (std::regex_search(url, m, pattern)) {
+            server_url = m[1].str();
+            request_url = m[2].str();
+        } else {
+            throw std::runtime_error("Error parsing file href for download");
+        }
+
+        // TODO download big file by parts with range header
+        httplib::SSLClient cli2(server_url.c_str());
+        auto r2 = cli2.Get(request_url.c_str());
+
+        if(r2.get() && r2->status == 200){
+            ofstream.write(r2->body.data(), r2->body.size());
+        } else {
+            throw_response_error(r2.get());
+        }
+    }
 }
 
 void OneDriveClient::uploadFile(std::string path, std::ifstream &ifstream, BOOL overwrite)
@@ -246,7 +276,7 @@ void OneDriveClient::_upload_small_file(std::string& path, std::ifstream &ifstre
     std::string url("/v1.0/me/drive/items/");
     url += parentFolderId;
     url += ":/";
-    url += fileName;
+    url += url_encode(fileName);
     url += ":/content";
 
     auto r = m_http_client->Put(url.c_str(), m_headers, body.str(), "application/octet-stream");
@@ -257,44 +287,102 @@ void OneDriveClient::_upload_small_file(std::string& path, std::ifstream &ifstre
         throw_response_error(r.get());
     }
 
-    //TODO throw status 409 if file exists
 }
 
 void OneDriveClient::_upload_big_file(std::string& path, std::ifstream &ifstream, BOOL overwrite, int fileSize)
 {
+    std::string fileName, parentFolderId("root");
+    int p = path.find_last_of('/');
+    fileName = path.substr(p + 1);
+    if(p>0){
+        std::string parentFolderPath = path.substr(0, p);
+        if(m_resourceNamesMap.find(parentFolderPath) != m_resourceNamesMap.end())
+            parentFolderId = m_resourceNamesMap[parentFolderPath];
+    }
+
+    std::string url("/v1.0/me/drive/items/");
+    url += parentFolderId;
+    url += ":/";
+    url += fileName;
+    url += ":/createUploadSession";
+
+    json jsParams = { {"item", {"@microsoft.graph.conflictBehavior", "rename"} } };
+    auto r = m_http_client->Post("/2/files/upload_session/start", m_headers, jsParams.dump(), "application/json");
+
+    std::string uploadUrl;
+    if(r.get() && r->status == 200) {
+        json js = json::parse(r->body);
+        uploadUrl = js["uploadUrl"].get<std::string>();
+    } else {
+        throw_response_error(r.get());
+    }
+
+    std::string server_url, request_url;
+    std::smatch m;
+    auto pattern = std::regex("https://(.+?)(/.+)");
+    if (std::regex_search(url, m, pattern)) {
+        server_url = m[1].str();
+        request_url = m[2].str();
+    } else {
+        throw std::runtime_error("Error parsing file href for upload");
+    }
+
+    httplib::SSLClient cli(server_url.c_str());
+    httplib::Headers hd; // = m_headers;
+    int count = fileSize / CHUNK_SIZE + ((fileSize % CHUNK_SIZE) > 0 ? 1 : 0);
+    int offset = 0, c = 0;
+
+    std::string body;
+    body.reserve(CHUNK_SIZE);
+    body.resize(CHUNK_SIZE);
+
+    while(count >= 0){
+
+        hd.emplace("Content-Length", std::to_string((count == 0 ? fileSize - offset : CHUNK_SIZE)) );
+        int rest = (count == 0 ? fileSize - 1 : c * offset + CHUNK_SIZE - 1);
+
+        std::stringstream range;
+        range << "bytes" << c * offset << "-" << rest << "/" << fileSize;
+
+        hd.erase("Content-Range");
+        hd.emplace("Content-Range", range.str());
+
+        ifstream.read(&body[0], (count == 0 ? fileSize - offset : CHUNK_SIZE));
+
+        r = cli.Put(request_url.c_str(), hd, body, "application/octet-stream");
+
+        offset += CHUNK_SIZE;
+        count --;
+        c++;
+    }
 
 }
 
 void OneDriveClient::move(std::string from, std::string to, BOOL overwrite)
 {
-    std::string fileId, oldParentId("root"), newParentId("root");
-    int p = from.find_last_of('/');
+    std::string fileId, newParentId("root");
     if(m_resourceNamesMap.find(from) == m_resourceNamesMap.end())
         throw std::runtime_error("Cannot find file ID");
 
     fileId = m_resourceNamesMap[from];
 
-    if(p>0){
-        std::string oldParentPath = from.substr(0, p);
-        if(m_resourceNamesMap.find(oldParentPath) != m_resourceNamesMap.end())
-            oldParentId = m_resourceNamesMap[oldParentPath];
-    }
-
-    p = to.find_last_of('/');
+    int p = to.find_last_of('/');
+    std::string toFileName = to.substr(p + 1);
     if(p>0){
         std::string newParentPath = to.substr(0, p);
         if(m_resourceNamesMap.find(newParentPath) != m_resourceNamesMap.end())
             newParentId = m_resourceNamesMap[newParentPath];
     }
 
-    std::string url("/drive/v3/files/");
+    std::string url("/v1.0/me/drive/items/");
     url += fileId;
-    url += "?removeParents=";
-    url += oldParentId;
-    url += "&addParents=";
-    url += newParentId;
 
-    auto r = m_http_client->Patch(url.c_str(), m_headers, "", "application/json");
+    json jsParams = {
+            {"parentReference", {"id", newParentId} },
+            "name", toFileName
+    };
+
+    auto r = m_http_client->Patch(url.c_str(), m_headers, jsParams.dump(), "application/json");
 
     if(!r.get() || r->status!=200)
         throw_response_error(r.get());
@@ -316,18 +404,18 @@ void OneDriveClient::copy(std::string from, std::string to, BOOL overwrite)
             toFolderId = m_resourceNamesMap[newFolderPath];
     }
 
-    json jsBody = {
-            {"name", toFileName},
-            {"parents", {toFolderId}},
-    };
-
-    std::string url("/drive/v3/files/");
+    std::string url("/v1.0/me/drive/items/");
     url += fileId;
     url += "/copy";
 
-    auto r = m_http_client->Post(url.c_str(), m_headers, jsBody.dump(), "application/json");
+    json jsParams = {
+            {"parentReference", {"id", toFolderId} },
+            "name", toFileName
+    };
 
-    if(!r.get() || r->status!=200)
+    auto r = m_http_client->Post(url.c_str(), m_headers, jsParams.dump(), "application/json");
+
+    if(!r.get() || r->status!=202)
         throw_response_error(r.get());
 }
 
