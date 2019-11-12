@@ -30,7 +30,6 @@ License along with this library; if not, write to the Free Software
 OneDriveClient::OneDriveClient()
 {
     m_http_client = new httplib::SSLClient("graph.microsoft.com");
-    m_resourceNamesMap["/"] = "root";
     m_client_id = "123";
 }
 
@@ -143,6 +142,11 @@ pResources OneDriveClient::prepare_folder_result(json js, std::string &path)
         //m_mimetypesMap[p] = item["mimeType"].get<std::string>();
 
         i++;
+    }
+
+    // get root folder id
+    if(isRoot && total > 0 && m_resourceNamesMap.find("/") == m_resourceNamesMap.end()){
+        m_resourceNamesMap["/"] = js["value"][0]["parentReference"]["id"];
     }
 
     if(isRoot){
@@ -360,7 +364,7 @@ void OneDriveClient::_upload_big_file(std::string& path, std::ifstream &ifstream
 
 void OneDriveClient::move(std::string from, std::string to, BOOL overwrite)
 {
-    std::string fileId, newParentId("root");
+    std::string fileId, newParentId;
     if(m_resourceNamesMap.find(from) == m_resourceNamesMap.end())
         throw std::runtime_error("Cannot find file ID");
 
@@ -370,17 +374,18 @@ void OneDriveClient::move(std::string from, std::string to, BOOL overwrite)
     std::string toFileName = to.substr(p + 1);
     if(p>0){
         std::string newParentPath = to.substr(0, p);
-        if(m_resourceNamesMap.find(newParentPath) != m_resourceNamesMap.end())
-            newParentId = m_resourceNamesMap[newParentPath];
+        if(m_resourceNamesMap.find(newParentPath) == m_resourceNamesMap.end())
+            throw std::runtime_error("Cannot find folder ID");
+
+        newParentId = m_resourceNamesMap[newParentPath];
     }
 
     std::string url("/v1.0/me/drive/items/");
     url += fileId;
 
-    json jsParams = {
-            {"parentReference", {"id", newParentId} },
-            "name", toFileName
-    };
+    json jsParams;
+    jsParams["parentReference"]["id"] = newParentId;
+    jsParams["name"] = toFileName;
 
     auto r = m_http_client->Patch(url.c_str(), m_headers, jsParams.dump(), "application/json");
 
@@ -390,7 +395,7 @@ void OneDriveClient::move(std::string from, std::string to, BOOL overwrite)
 
 void OneDriveClient::copy(std::string from, std::string to, BOOL overwrite)
 {
-    std::string fileId, toFileName, toFolderId("root");
+    std::string fileId, toFileName, toFolderId;
     if(m_resourceNamesMap.find(from) == m_resourceNamesMap.end())
         throw std::runtime_error("Cannot find file ID");
 
@@ -400,18 +405,19 @@ void OneDriveClient::copy(std::string from, std::string to, BOOL overwrite)
     toFileName = to.substr(p + 1);
     if(p>0){
         std::string newFolderPath = to.substr(0, p);
-        if(m_resourceNamesMap.find(newFolderPath) != m_resourceNamesMap.end())
-            toFolderId = m_resourceNamesMap[newFolderPath];
+        if(m_resourceNamesMap.find(newFolderPath) == m_resourceNamesMap.end())
+            throw std::runtime_error("Cannot find folder ID");
+
+        toFolderId = m_resourceNamesMap[newFolderPath];
     }
 
     std::string url("/v1.0/me/drive/items/");
     url += fileId;
     url += "/copy";
 
-    json jsParams = {
-            {"parentReference", {"id", toFolderId} },
-            "name", toFileName
-    };
+    json jsParams;
+    jsParams["parentReference"]["id"] = toFolderId;
+    jsParams["name"] = toFileName;
 
     auto r = m_http_client->Post(url.c_str(), m_headers, jsParams.dump(), "application/json");
 
