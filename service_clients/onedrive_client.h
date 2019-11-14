@@ -56,7 +56,7 @@ public:
     void saveFromUrl(std::string urlFrom, std::string pathTo) { throw std::runtime_error("Not supported"); }
 
     // remove all files from trash
-    void cleanTrash();
+    void cleanTrash() {};
 
     // remove one file or folder from trash
     void deleteFromTrash(std::string utf8Path) { throw std::runtime_error("Not supported"); }
@@ -69,7 +69,6 @@ private:
     httplib::Headers m_headers;
 
     std::map<std::string, std::string> m_resourceNamesMap;
-    std::map<std::string, std::string> m_mimetypesMap;
 
     void throw_response_error(httplib::Response* resp);
     pResources prepare_folder_result(json json, std::string& path);

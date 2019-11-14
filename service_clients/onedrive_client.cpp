@@ -139,7 +139,6 @@ pResources OneDriveClient::prepare_folder_result(json js, std::string &path)
             p += "/";
         p += item["name"].get<std::string>();
         m_resourceNamesMap[p] = item["id"].get<std::string>();
-        //m_mimetypesMap[p] = item["mimeType"].get<std::string>();
 
         i++;
     }
@@ -147,15 +146,6 @@ pResources OneDriveClient::prepare_folder_result(json js, std::string &path)
     // get root folder id
     if(isRoot && total > 0 && m_resourceNamesMap.find("/") == m_resourceNamesMap.end()){
         m_resourceNamesMap["/"] = js["value"][0]["parentReference"]["id"];
-    }
-
-    if(isRoot){
-        memcpy(pRes->resource_array[total].cFileName, u".Trash", sizeof(WCHAR) * 7);
-        pRes->resource_array[total].dwFileAttributes = FILE_ATTRIBUTE_DIRECTORY;
-        pRes->resource_array[total].nFileSizeLow = 0;
-        pRes->resource_array[total].nFileSizeHigh = 0;
-        pRes->resource_array[total].ftCreationTime = get_now_time();
-        pRes->resource_array[total].ftLastWriteTime = get_now_time();
     }
 
     return pRes;
@@ -422,13 +412,5 @@ void OneDriveClient::copy(std::string from, std::string to, BOOL overwrite)
     auto r = m_http_client->Post(url.c_str(), m_headers, jsParams.dump(), "application/json");
 
     if(!r.get() || r->status!=202)
-        throw_response_error(r.get());
-}
-
-void OneDriveClient::cleanTrash()
-{
-    auto r = m_http_client->Delete("/drive/v3/files/trash", m_headers);
-
-    if(!r.get() || r->status<=200 || r->status>=300)
         throw_response_error(r.get());
 }
