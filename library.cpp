@@ -474,10 +474,10 @@ void DCPCALL FsStatusInfoW(WCHAR* RemoteDir, int InfoStartEnd, int InfoOperation
 int DCPCALL FsExecuteFileW(HWND MainWin, WCHAR* RemoteName, WCHAR* Verb)
 {
     wcharstring wVerb(Verb), wRemoteName(RemoteName);
+    wcharstring wCreateString((WCHAR*)_createstr);
 
     if(wVerb.find((WCHAR*)u"open") == 0){
-        wcharstring wCreate((WCHAR*)_createstr);
-        if (wRemoteName == wCreate){
+        if (wRemoteName == wCreateString){
             WCHAR connection_name[MAX_PATH];
             connection_name[0] = 0;
             BOOL res = gRequestProcW(gPluginNumber, RT_Other, (WCHAR*)u"New connection", (WCHAR*)u"Enter connection name", connection_name, MAX_PATH);
@@ -509,7 +509,7 @@ int DCPCALL FsExecuteFileW(HWND MainWin, WCHAR* RemoteName, WCHAR* Verb)
             return FS_EXEC_OK;
         }
 
-        if(isConnectionName(RemoteName)){
+        if(isConnectionName(RemoteName) && wRemoteName != wCreateString){
             std::string strName = UTF16toUTF8(RemoteName + 1);
             json::object_t *obj = get_connection_ptr(gJsonConfig, strName);
             int res = show_connection_properties_dlg(obj);
