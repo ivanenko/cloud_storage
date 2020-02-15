@@ -245,7 +245,7 @@ object DialogBox: TDialogBox
       object Label2: TLabel
         Left = 8
         Height = 17
-        Top = 72
+        Top = 70
         Width = 119
         Caption = 'Local http server port'
         ParentColor = False
@@ -253,11 +253,28 @@ object DialogBox: TDialogBox
       object edtServerPort: TEdit
         Left = 8
         Height = 27
-        Top = 94
+        Top = 92
         Width = 96
         NumbersOnly = True
         TabOrder = 1
         Text = '3359'
+      end
+      object Label3: TLabel
+        Left = 8
+        Height = 17
+        Top = 136
+        Width = 119
+        Caption = 'Authentication timeout (sec)'
+        ParentColor = False
+      end
+      object edtAuthTimeout: TEdit
+        Left = 8
+        Height = 27
+        Top = 158
+        Width = 96
+        NumbersOnly = True
+        TabOrder = 2
+        Text = '20'
       end
     end
   end
@@ -332,7 +349,7 @@ BOOL show_new_connection_dlg(nlohmann::json &json_obj)
 //============================== Connection properties dialog
 intptr_t DCPCALL DlgProcProps(uintptr_t pDlg, char *DlgItemName, intptr_t Msg, intptr_t wParam, intptr_t lParam)
 {
-    char *clientId, *portNumber;
+    char *clientId, *portNumber, *timeout;
     switch (Msg){
         case DN_INITDIALOG:
             if(gpJsonConnection->at("get_token_method").is_string()
@@ -356,6 +373,11 @@ intptr_t DCPCALL DlgProcProps(uintptr_t pDlg, char *DlgItemName, intptr_t Msg, i
             if(gpJsonConnection->at("port").is_number()){
                 std::string port = std::to_string(gpJsonConnection->at("port").get<int>());
                 gExtensionInfoPtr->SendDlgMsg(pDlg, "edtServerPort", DM_SETTEXT, (intptr_t)port.c_str(), 0);
+            }
+
+            if(gpJsonConnection->at("auth_timeout").is_number()){
+                std::string timeout = std::to_string(gpJsonConnection->at("auth_timeout").get<int>());
+                gExtensionInfoPtr->SendDlgMsg(pDlg, "edtAuthTimeout", DM_SETTEXT, (intptr_t)timeout.c_str(), 0);
             }
 
             break;
@@ -391,6 +413,12 @@ intptr_t DCPCALL DlgProcProps(uintptr_t pDlg, char *DlgItemName, intptr_t Msg, i
                     gpJsonConnection->at("port") = std::atoi(portNumber);
                 else
                     gpJsonConnection->at("port") = nullptr;
+
+                timeout = (char*)gExtensionInfoPtr->SendDlgMsg(pDlg, "edtAuthTimeout", DM_GETTEXT, 1, 0);
+                if(strlen(timeout) > 0)
+                    gpJsonConnection->at("auth_timeout") = std::atoi(timeout);
+                else
+                    gpJsonConnection->at("auth_timeout") = nullptr;
 
                 gExtensionInfoPtr->SendDlgMsg(pDlg, DlgItemName, DM_CLOSE, 1, 0);
             } else if(strcmp(DlgItemName, "btnCancel")==0){

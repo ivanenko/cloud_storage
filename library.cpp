@@ -116,6 +116,8 @@ ServiceClient* getServiceClient(json& gJsonConfig, std::string strConnectionName
     } else {
         if(connection["port"].is_number())
             client->set_port(connection["port"].get<int>());
+        if(connection["auth_timeout"].is_number())
+            client->set_auth_timeout(connection["auth_timeout"].get<int>());
         if(connection["client_id"].is_string())
             client->set_client_id(connection["client_id"].get<std::string>());
 

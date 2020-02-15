@@ -62,15 +62,17 @@ protected:
 class ServiceClient {
 protected:
     int m_port;
+    int m_auth_timeout;
     std::string m_client_id;
 
     std::__cxx11::string url_encode(const std::__cxx11::string& s);
     int _get_port();
+    int _get_auth_timeout();
     virtual std::string _get_client_id() { return m_client_id; };
 
 public:
 
-    ServiceClient(){ m_port = 3359; };
+    ServiceClient(){ m_port = 3359; m_auth_timeout = 20; };
 
     virtual ~ServiceClient() {};
 
@@ -107,6 +109,8 @@ public:
     virtual void run_command(std::string remoteName, std::vector<std::string> &arguments) = 0;
 
     virtual void set_port(int port) { m_port = port; };
+
+    virtual void set_auth_timeout(int timeout) { m_auth_timeout = timeout; };
 
     virtual void set_client_id(std::string client_id) { m_client_id = client_id; };
 

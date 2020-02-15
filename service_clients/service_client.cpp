@@ -75,6 +75,11 @@ int ServiceClient::_get_port()
     return m_port;
 }
 
+int ServiceClient::_get_auth_timeout()
+{
+    return m_auth_timeout;
+}
+
 std::string ServiceClient::get_oauth_token()
 {
     httplib::Server server;
@@ -92,7 +97,7 @@ std::string ServiceClient::get_oauth_token()
     system(url.c_str());
 
     std::string error_message;
-    std::future_status ftr_status = ftr.wait_for(std::chrono::seconds(20));
+    std::future_status ftr_status = ftr.wait_for(std::chrono::seconds(_get_auth_timeout()));
     if(ftr_status == std::future_status::ready) {
         token = ftr.get();
     } else if (ftr_status == std::future_status::timeout){
