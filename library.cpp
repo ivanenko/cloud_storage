@@ -479,6 +479,8 @@ int DCPCALL FsExecuteFileW(HWND MainWin, WCHAR* RemoteName, WCHAR* Verb)
     wcharstring wCreateString((WCHAR*)_createstr);
 
     if(wVerb.find((WCHAR*)u"open") == 0){
+
+        //Create new connection
         if (wRemoteName == wCreateString){
             WCHAR connection_name[MAX_PATH];
             connection_name[0] = 0;
@@ -511,6 +513,7 @@ int DCPCALL FsExecuteFileW(HWND MainWin, WCHAR* RemoteName, WCHAR* Verb)
             return FS_EXEC_OK;
         }
 
+        // Update connection properties
         if(isConnectionName(RemoteName) && wRemoteName != wCreateString){
             std::string strName = UTF16toUTF8(RemoteName + 1);
             json::object_t *obj = get_connection_ptr(gJsonConfig, strName);

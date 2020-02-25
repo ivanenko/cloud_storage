@@ -287,6 +287,8 @@ extern ServiceFactory gServiceFactory;
 
 static nlohmann::json::object_t *gpJson, *gpJsonConnection;
 
+
+
 //============================= New connection dialog
 intptr_t DCPCALL DlgProcNew(uintptr_t pDlg, char *DlgItemName, intptr_t Msg, intptr_t wParam, intptr_t lParam)
 {
@@ -346,6 +348,11 @@ BOOL show_new_connection_dlg(nlohmann::json &json_obj)
     return res;
 }
 
+BOOL exists(nlohmann::json::object_t *pJson, std::string fieldName)
+{
+    return pJson->find(fieldName) != pJson->end();
+}
+
 //============================== Connection properties dialog
 intptr_t DCPCALL DlgProcProps(uintptr_t pDlg, char *DlgItemName, intptr_t Msg, intptr_t wParam, intptr_t lParam)
 {
@@ -367,15 +374,15 @@ intptr_t DCPCALL DlgProcProps(uintptr_t pDlg, char *DlgItemName, intptr_t Msg, i
             else
                 gExtensionInfoPtr->SendDlgMsg(pDlg, "saveMethodRadio", DM_LISTSETITEMINDEX, 0, 0); // dont_save by default
 
-            if(gpJsonConnection->at("client_id").is_string())
+            if(exists(gpJsonConnection, "client_id") && gpJsonConnection->at("client_id").is_string())
                 gExtensionInfoPtr->SendDlgMsg(pDlg, "edtClientID", DM_SETTEXT, (intptr_t)gpJsonConnection->at("client_id").get<std::string>().c_str(), 0);
 
-            if(gpJsonConnection->at("port").is_number()){
+            if(exists(gpJsonConnection, "port") && gpJsonConnection->at("port").is_number()){
                 std::string port = std::to_string(gpJsonConnection->at("port").get<int>());
                 gExtensionInfoPtr->SendDlgMsg(pDlg, "edtServerPort", DM_SETTEXT, (intptr_t)port.c_str(), 0);
             }
 
-            if(gpJsonConnection->at("auth_timeout").is_number()){
+            if(exists(gpJsonConnection, "auth_timeout") && gpJsonConnection->at("auth_timeout").is_number()){
                 std::string timeout = std::to_string(gpJsonConnection->at("auth_timeout").get<int>());
                 gExtensionInfoPtr->SendDlgMsg(pDlg, "edtAuthTimeout", DM_SETTEXT, (intptr_t)timeout.c_str(), 0);
             }
@@ -403,22 +410,21 @@ intptr_t DCPCALL DlgProcProps(uintptr_t pDlg, char *DlgItemName, intptr_t Msg, i
 
                 clientId = (char*)gExtensionInfoPtr->SendDlgMsg(pDlg, "edtClientID", DM_GETTEXT, 1, 0);
                 if(strlen(clientId) > 0)
-                    gpJsonConnection->at("client_id") = clientId;
+                    (*gpJsonConnection)["client_id"] = clientId;
                 else
-                    gpJsonConnection->at("client_id") = nullptr;
-                //gpJsonConnection->at("client_id") = (strlen(clientId) > 0 ? clientId: nullptr);
+                    (*gpJsonConnection)["client_id"] = nullptr;
 
                 portNumber = (char*)gExtensionInfoPtr->SendDlgMsg(pDlg, "edtServerPort", DM_GETTEXT, 1, 0);
                 if(strlen(portNumber) > 0)
-                    gpJsonConnection->at("port") = std::atoi(portNumber);
+                    (*gpJsonConnection)["port"] = std::atoi(portNumber);
                 else
-                    gpJsonConnection->at("port") = nullptr;
+                    (*gpJsonConnection)["port"] = nullptr;
 
                 timeout = (char*)gExtensionInfoPtr->SendDlgMsg(pDlg, "edtAuthTimeout", DM_GETTEXT, 1, 0);
                 if(strlen(timeout) > 0)
-                    gpJsonConnection->at("auth_timeout") = std::atoi(timeout);
+                    (*gpJsonConnection)["auth_timeout"] = std::atoi(timeout);
                 else
-                    gpJsonConnection->at("auth_timeout") = nullptr;
+                    (*gpJsonConnection)["auth_timeout"] = nullptr;
 
                 gExtensionInfoPtr->SendDlgMsg(pDlg, DlgItemName, DM_CLOSE, 1, 0);
             } else if(strcmp(DlgItemName, "btnCancel")==0){
